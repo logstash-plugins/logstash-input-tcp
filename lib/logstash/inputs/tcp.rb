@@ -12,7 +12,6 @@ require "logstash/util/socket_peer"
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   class Interrupted < StandardError; end
   config_name "tcp"
-  milestone 2
 
   default :codec, "line"
 
