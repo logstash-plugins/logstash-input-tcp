@@ -126,7 +126,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def run_client(output_queue)
     while !stop?
       self.client_socket = new_client_socket
-      handle_socket(client_socket, client_socket.peeraddr[3], output_queue, @codec.clone)
+      handle_socket(client_socket, client_socket.peeraddr[3], client_socket.peeraddr[1], output_queue, @codec.clone)
     end
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
@@ -137,17 +137,18 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     Thread.new(output_queue, socket) do |q, s|
       begin
         @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
-        handle_socket(s, s.peeraddr[3], q, @codec.clone)
+        handle_socket(s, s.peeraddr[3], s.peeraddr[1], q, @codec.clone)
       ensure
         delete_connection_socket(s)
       end
     end
   end
 
-  def handle_socket(socket, client_address, output_queue, codec)
+  def handle_socket(socket, client_address, client_port, output_queue, codec)
     while !stop?
       codec.decode(read(socket)) do |event|
         event["host"] ||= client_address
+        event["port"] ||= client_port
         event["sslsubject"] ||= socket.peer_cert.subject if @ssl_enable && @ssl_verify
         decorate(event)
         output_queue << event
@@ -170,12 +171,28 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     codec.respond_to?(:flush) && codec.flush do |event|
       event["host"] ||= client_address
+      event["port"] ||= client_port
       event["sslsubject"] ||= socket.peer_cert.subject if @ssl_enable && @ssl_verify
       decorate(event)
       output_queue << event
     end
   end
 
+  private
+  def client_thread(output_queue, socket)
+    Thread.new(output_queue, socket) do |q, s|
+      begin
+        @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
+        handle_socket(s, s.peeraddr[3], s.peeraddr[1], q, @codec.clone)
+      rescue Interrupted
+        s.close rescue nil
+      ensure
+        @client_threads_lock.synchronize{@client_threads.delete(Thread.current)}
+      end
+    end
+  end
+
+  private
   def server?
     @mode == "server"
   end
