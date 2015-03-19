@@ -101,7 +101,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end # def register
 
   private
-  def handle_socket(socket, client_address, output_queue, codec)
+  def handle_socket(socket, client_address, client_port, output_queue, codec)
     while true
       buf = nil
       # NOTE(petef): the timeout only hits after the line is read or socket dies
@@ -115,6 +115,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       end
       codec.decode(buf) do |event|
         event["host"] ||= client_address
+        event["port"] ||= client_port
         event["sslsubject"] ||= socket.peer_cert.subject if @ssl_enable && @ssl_verify
         decorate(event)
         output_queue << event
@@ -131,6 +132,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     codec.respond_to?(:flush) && codec.flush do |event|
       event["host"] ||= client_address
+      event["port"] ||= client_port
       event["sslsubject"] ||= socket.peer_cert.subject if @ssl_enable && @ssl_verify
       decorate(event)
       output_queue << event
@@ -142,7 +144,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     Thread.new(output_queue, socket) do |q, s|
       begin
         @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
-        handle_socket(s, s.peeraddr[3], q, @codec.clone)
+        handle_socket(s, s.peeraddr[3], s.peeraddr[1], q, @codec.clone)
       rescue Interrupted
         s.close rescue nil
       ensure
