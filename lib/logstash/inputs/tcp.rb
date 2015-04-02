@@ -10,7 +10,6 @@ require "logstash/util/socket_peer"
 # Can either accept connections from clients or connect to a server,
 # depending on `mode`.
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
-  class Interrupted < StandardError; end
   config_name "tcp"
 
   default :codec, "line"
@@ -146,7 +145,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       begin
         @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
         handle_socket(s, s.peeraddr[3], q, @codec.clone)
-      rescue Interrupted, LogStash::ShutdownSignal
+      rescue LogStash::ShutdownSignal
+        @interrupted = true
         s.close rescue nil
       ensure
         @client_threads_lock.synchronize{@client_threads.delete(Thread.current)}
@@ -161,7 +161,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   private
   def read(socket)
-    return socket.sysread(16384)
+    socket.sysread(16384)
   end # def readline
 
   public
@@ -174,7 +174,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end # def run
 
   def run_server(output_queue)
-    @thread = Thread.current
     @client_threads = []
     @client_threads_lock = Mutex.new
 
@@ -186,33 +185,22 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       rescue OpenSSL::SSL::SSLError => ssle
         # NOTE(mrichar1): This doesn't return a useful error message for some reason
         @logger.error("SSL Error", :exception => ssle, :backtrace => ssle.backtrace)
-      rescue IOError, LogStash::ShutdownSignal => e
-        @interrupted = true if e.is_a?(LogStash::ShutdownSignal)
-
-        if @interrupted
-          @server_socket.close rescue nil
-
-          threads = @client_threads_lock.synchronize{@client_threads.dup}
-          threads.each do |thread|
-            thread.raise(LogStash::ShutdownSignal) if thread.alive?
-          end
-
-          # intended shutdown, get out of the loop
-          break
-        else
-          # it was a genuine IOError, propagate it up
-          raise
-        end
+      rescue IOError
+        raise unless @interrupted
       end
-    end # loop
+    end
   rescue LogStash::ShutdownSignal
-    # nothing to do
+    @interrupted = true
   ensure
     @server_socket.close rescue nil
+
+    threads = @client_threads_lock.synchronize{@client_threads.dup}
+    threads.each do |thread|
+      thread.raise(LogStash::ShutdownSignal) if thread.alive?
+    end
   end # def run_server
 
   def run_client(output_queue)
-    @thread = Thread.current
     while !@interrupted
       @client_socket = TCPSocket.new(@host, @port)
       if @ssl_enable
@@ -226,7 +214,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
           next
         end
       end
-      @logger.debug("Opened connection", :client => "#{@client_socket.peer}")
+      @logger.debug? && @logger.debug("Opened connection", :client => "#{@client_socket.peer}")
       handle_socket(@client_socket, @client_socket.peeraddr[3], output_queue, @codec.clone)
     end # loop
   ensure
