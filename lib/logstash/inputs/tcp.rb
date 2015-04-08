@@ -10,7 +10,6 @@ require "logstash/util/socket_peer"
 # Can either accept connections from clients or connect to a server,
 # depending on `mode`.
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
-  class Interrupted < StandardError; end
   config_name "tcp"
 
   default :codec, "line"
@@ -54,6 +53,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def initialize(*args)
     super(*args)
+    @interrupted = false
+    @server_socket = nil
+    @client_socket = nil
   end # def initialize
 
   public
@@ -102,10 +104,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   private
   def handle_socket(socket, client_address, output_queue, codec)
-    while true
+    while !@interrupted
       buf = nil
       # NOTE(petef): the timeout only hits after the line is read or socket dies
-      # TODO(sissel): Why do we have a timeout here? What's the point?
+      # TODO(sissel): Why do we have a Timeout here? What's the point?
       if @data_timeout == -1
         buf = read(socket)
       else
@@ -143,7 +145,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       begin
         @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
         handle_socket(s, s.peeraddr[3], q, @codec.clone)
-      rescue Interrupted
+      rescue LogStash::ShutdownSignal
+        @interrupted = true
         s.close rescue nil
       ensure
         @client_threads_lock.synchronize{@client_threads.delete(Thread.current)}
@@ -158,7 +161,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   private
   def read(socket)
-    return socket.sysread(16384)
+    socket.sysread(16384)
   end # def readline
 
   public
@@ -171,11 +174,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end # def run
 
   def run_server(output_queue)
-    @thread = Thread.current
     @client_threads = []
     @client_threads_lock = Mutex.new
 
-    while true
+    while !@interrupted
       begin
         socket = @server_socket.accept
         # start a new thread for each connection.
@@ -183,37 +185,28 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       rescue OpenSSL::SSL::SSLError => ssle
         # NOTE(mrichar1): This doesn't return a useful error message for some reason
         @logger.error("SSL Error", :exception => ssle, :backtrace => ssle.backtrace)
-      rescue IOError, LogStash::ShutdownSignal
-        if @interrupted
-          @server_socket.close rescue nil
-
-          threads = @client_threads_lock.synchronize{@client_threads.dup}
-          threads.each do |thread|
-            thread.raise(LogStash::ShutdownSignal) if thread.alive?
-          end
-
-          # intended shutdown, get out of the loop
-          break
-        else
-          # it was a genuine IOError, propagate it up
-          raise
-        end
+      rescue IOError
+        raise unless @interrupted
       end
-    end # loop
+    end
   rescue LogStash::ShutdownSignal
-    # nothing to do
+    @interrupted = true
   ensure
     @server_socket.close rescue nil
+
+    threads = @client_threads_lock.synchronize{@client_threads.dup}
+    threads.each do |thread|
+      thread.raise(LogStash::ShutdownSignal) if thread.alive?
+    end
   end # def run_server
 
   def run_client(output_queue)
-    @thread = Thread.current
-    while true
-      client_socket = TCPSocket.new(@host, @port)
+    while !@interrupted
+      @client_socket = TCPSocket.new(@host, @port)
       if @ssl_enable
-        client_socket = OpenSSL::SSL::SSLSocket.new(client_socket, @ssl_context)
+        @client_socket = OpenSSL::SSL::SSLSocket.new(@client_socket, @ssl_context)
         begin
-          client_socket.connect
+          @client_socket.connect
         rescue OpenSSL::SSL::SSLError => ssle
           @logger.error("SSL Error", :exception => ssle, :backtrace => ssle.backtrace)
           # NOTE(mrichar1): Hack to prevent hammering peer
@@ -221,17 +214,23 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
           next
         end
       end
-      @logger.debug("Opened connection", :client => "#{client_socket.peer}")
-      handle_socket(client_socket, client_socket.peeraddr[3], output_queue, @codec.clone)
+      @logger.debug? && @logger.debug("Opened connection", :client => "#{@client_socket.peer}")
+      handle_socket(@client_socket, @client_socket.peeraddr[3], output_queue, @codec.clone)
     end # loop
   ensure
-    client_socket.close rescue nil
+    @client_socket.close rescue nil
   end # def run
 
   public
   def teardown
-    if server?
-      @interrupted = true
+    @interrupted = true
+    if @server_socket
+      @server_socket.close rescue nil
+      @server_socket = nil
+    end
+    if @client_socket
+      @client_socket.close rescue nil
+      @client_socket = nil
     end
   end # def teardown
 end # class LogStash::Inputs::Tcp
