@@ -38,12 +38,27 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Verify the identity of the other end of the SSL connection against the CA.
   # For input, sets the field `sslsubject` to that of the client certificate.
   config :ssl_verify, :validate => :boolean, :default => false
+  
+  # Verify the identity of the other end of the SSL connection against the CA.
+  # depth of ca-certificates to be checked
+  config :ssl_verify_depth, :validate => :number, :default => -1
 
   # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
+  # Used for the Client Trust Store
   config :ssl_cacert, :validate => :path
+
+  # Include system CA path to Client Trust Store
+  config :ssl_client_ca_include_system_store, :validate => :boolean, :default => true
+
+  # Instead of including every
+  config :ssl_client_ca_iterate_files, :validate => :boolean, :default => false
 
   # SSL certificate path
   config :ssl_cert, :validate => :path
+  
+  # The SSL CA certificate, chainfile or CA path.
+  config :ssl_cert_cachain, :validate => :path
+
 
   # SSL key path
   config :ssl_key, :validate => :path
@@ -74,16 +89,36 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       @ssl_context = OpenSSL::SSL::SSLContext.new
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
+      unless @ssl_cert_cachain.nil?
+        if File.directory?(@ssl_cert_cachain)
+            @ssl_context.ca_path = @ssl_cert_cachain
+        else
+            @ssl_context.ca_file = @ssl_cert_cachain
+        end
+      end
       if @ssl_verify
         @cert_store = OpenSSL::X509::Store.new
         # Load the system default certificate path to the store
-        @cert_store.set_default_paths
+        if@ssl_client_ca_include_system_store
+          @cert_store.set_default_paths
+        end
         if File.directory?(@ssl_cacert)
-          @cert_store.add_path(@ssl_cacert)
+          if @ssl_client_ca_iterate_files
+              dir = "#{@ssl_cacert}/*"
+              Dir.glob(dir) do |item|
+                  next if item == '.' or item == '..'
+                  @cert_store.add_file(item)
+              end
+          else
+            @cert_store.add_path(@ssl_cacert)
+          end
         else
           @cert_store.add_file(@ssl_cacert)
         end
         @ssl_context.cert_store = @cert_store
+        if @ssl_verify_depth > -1
+          @ssl_context.verify_depth = @ssl_verify_depth
+        end
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
     end # @ssl_enable
