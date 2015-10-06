@@ -4,7 +4,10 @@ require "socket"
 require "timeout"
 require "logstash/json"
 require "logstash/inputs/tcp"
-require 'stud/try'
+require "stud/try"
+require "flores/pki"
+require "openssl"
+
 require_relative "../spec_helper"
 
 describe LogStash::Inputs::Tcp do
@@ -251,7 +254,6 @@ describe LogStash::Inputs::Tcp do
             socket.flush
           end
         end
-
         socket.close rescue nil
 
         result
@@ -275,8 +277,43 @@ describe LogStash::Inputs::Tcp do
           expect(event["port"]).to be_an(Fixnum)
         end
       end
-    end
 
+      describe "ssl" do
+
+        let(:certificate) { helper.certificate }
+
+        subject(:input) { LogStash::Plugin.lookup("input", "tcp").new(config) }
+
+        let(:config) do
+          { "host" => "0.0.0.0", "port" => port, "ssl_enable" => true, "ssl_cert" => certificate[0].path, "ssl_key" => certificate[1].path }
+        end
+
+        let(:events) do
+
+          socket = Stud::try(5.times) do
+            ssl_context = OpenSSL::SSL::SSLContext.new
+            socket = TCPSocket.new("127.0.0.1", port)
+            OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+          end
+
+          result = helper.pipelineless_input(subject, nevents) do
+            socket.connect
+            nevents.times do |i|
+              socket.puts("msg #{i}")
+              socket.flush
+            end
+          end
+          socket.close rescue nil
+
+          result
+        end
+
+        it "should receive events" do
+          expect(events.size).to be(nevents)
+        end
+
+      end
+    end
     it_behaves_like "an interruptible input plugin" do
       let(:config) { { "port" => port } }
     end
