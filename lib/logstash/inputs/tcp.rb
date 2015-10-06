@@ -69,8 +69,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     if @ssl_enable
       @ssl_context = OpenSSL::SSL::SSLContext.new
-      @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       raw_cert = File.read(@ssl_cert)
+      @ssl_context.cert = OpenSSL::X509::Certificate.new(raw_cert)
       
       # Parse chain certificates from @ssl_cert
       certPosition = [0]
