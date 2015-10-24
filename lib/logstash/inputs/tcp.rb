@@ -275,7 +275,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @socket_mutex.synchronize{@client_socket}
   end
 
-  def set_server_socket(socket)
+  def server_socket=(socket)
     @socket_mutex.synchronize{@server_socket = socket}
   end
 

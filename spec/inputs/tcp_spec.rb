@@ -226,6 +226,7 @@ describe LogStash::Inputs::Tcp do
 
     let(:port) { rand(1024..65535) }
     subject { LogStash::Plugin.lookup("input", "tcp").new({ "port" => port }) }
+    let!(:helper) { TcpHelpers.new }
 
     after :each do
       subject.close rescue nil
@@ -244,7 +245,7 @@ describe LogStash::Inputs::Tcp do
       let(:events) do
         socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
 
-        result = pipelineless_input(subject, nevents) do
+        result = helper.pipelineless_input(subject, nevents) do
           nevents.times do |i|
             socket.puts("msg #{i}")
             socket.flush
