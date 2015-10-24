@@ -2,6 +2,9 @@
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 
+require "socket"
+require "openssl"
+
 # Read events over a TCP socket.
 #
 # Like stdin and file inputs, each event is assumed to be one line of text.
@@ -49,79 +52,27 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def initialize(*args)
     super(*args)
 
+    # monkey patch TCPSocket and SSLSocket to include socket peer
+    TCPSocket.module_eval{include ::LogStash::Util::SocketPeer}
+    OpenSSL::SSL::SSLSocket.module_eval{include ::LogStash::Util::SocketPeer}
+
     # threadsafe socket bookkeeping
     @server_socket = nil
     @client_socket = nil
     @connection_sockets = {}
     @socket_mutex = Mutex.new
+
+    @ssl_context = nil
   end
 
   def register
-    require "socket"
-    require "timeout"
-    require "openssl"
-
-    # monkey patch TCPSocket and SSLSocket to include socket peer
-    TCPSocket.module_eval{include ::LogStash::Util::SocketPeer}
-    OpenSSL::SSL::SSLSocket.module_eval{include ::LogStash::Util::SocketPeer}
-
     fix_streaming_codecs
-
-    if @ssl_enable
-      @ssl_context = OpenSSL::SSL::SSLContext.new
-      raw_cert = File.read(@ssl_cert)
-      @ssl_context.cert = OpenSSL::X509::Certificate.new(raw_cert)
-      
-      # Parse chain certificates from @ssl_cert
-      certPosition = [0]
-      while certPosition[-1]
-        certPosition.push(raw_cert.index("-----B", certPosition[-1] + 1))
-      end
-      
-      # Gather chain from certificate
-      if certPosition.length > 2
-      @ssl_context.extra_chain_cert = Array.new
-        for i in 1..(certPosition.length - 2)
-          if certPosition[i+1]
-            certEnd = certPosition[i+1] - 1
-          else
-            certEnd = raw_cert.length - 1
-          end
-          certLink = OpenSSL::X509::Certificate.new(raw_cert[certPosition[i]..certEnd])
-          @ssl_context.extra_chain_cert.push(certLink)
-        end
-      end
-      
-      @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
-      if @ssl_verify
-        @cert_store = OpenSSL::X509::Store.new
-        # Load the system default certificate path to the store
-        @cert_store.set_default_paths
-        if File.directory?(@ssl_cacert)
-          @cert_store.add_path(@ssl_cacert)
-        else
-          @cert_store.add_file(@ssl_cacert)
-        end
-        @ssl_context.cert_store = @cert_store
-        @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
-      end
-    end
 
     # note that since we are opening a socket in register, we must also make sure we close it
     # in the close method even if we also close it in the stop method since we could have
     # a situation where register is called but not run & stop.
 
-    if server?
-      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}")
-      begin
-        set_server_socket(TCPServer.new(@host, @port))
-      rescue Errno::EADDRINUSE
-        @logger.error("Could not start TCP server: Address in use", :host => @host, :port => @port)
-        raise
-      end
-
-      set_server_socket(OpenSSL::SSL::SSLServer.new(server_socket, @ssl_context)) if @ssl_enable
-    end
+    self.server_socket = new_server_socket if server?
   end
 
   def run(output_queue)
@@ -158,11 +109,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         # start a new thread for each connection.
         server_connection_thread(output_queue, socket)
       rescue OpenSSL::SSL::SSLError => e
+        # log error, close socket, accept next connection
         @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
-      rescue
+        socket.close rescue nil
+      rescue => e
         # if this exception occured while the plugin is stopping
         # just ignore and exit
-        raise unless stop?
+        raise e unless stop?
       end
     end
   ensure
@@ -172,24 +125,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def run_client(output_queue)
     while !stop?
-      set_client_socket(TCPSocket.new(@host, @port))
-
-      if @ssl_enable
-        set_client_socket(OpenSSL::SSL::SSLSocket.new(client_socket, @ssl_context))
-        begin
-          client_socket.connect
-        rescue OpenSSL::SSL::SSLError => e
-          @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
-          sleep(1) # prevent hammering peer
-          next
-        rescue
-          # if this exception occured while the plugin is stopping
-          # just ignore and exit
-          raise unless stop?
-        end
-      end
-
-      @logger.debug? && @logger.debug("Opened connection", :client => "#{client_socket.peer}")
+      self.client_socket = new_client_socket
       handle_socket(client_socket, client_socket.peeraddr[3], output_queue, @codec.clone)
     end
   ensure
@@ -223,7 +159,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @logger.debug? && @logger.debug("Connection reset by peer", :client => socket.peer)
   rescue => e
     # if plugin is stopping, don't bother logging it as an error
-    @logger.error("An error occurred. Closing connection", :client => socket.peer, :exception => e, :backtrace => e.backtrace) unless stop?
+    !stop? && @logger.error("An error occurred. Closing connection", :client => socket.peer, :exception => e, :backtrace => e.backtrace)
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
@@ -244,9 +180,94 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     socket.sysread(16384)
   end
 
+  def ssl_context
+    return @ssl_context if @ssl_context
+
+    begin
+      @ssl_context = OpenSSL::SSL::SSLContext.new
+	  raw_cert = File.read(@ssl_cert)
+      @ssl_context.cert = OpenSSL::X509::Certificate.new(raw_cert)
+
+      # Parse chain certificates from @ssl_cert
+      certPosition = [0]
+      while certPosition[-1]
+        certPosition.push(raw_cert.index("-----B", certPosition[-1] + 1))
+      end
+
+      # Gather chain from certificate
+      if certPosition.length > 2
+      @ssl_context.extra_chain_cert = Array.new
+        for i in 1..(certPosition.length - 2)
+          if certPosition[i+1]
+            certEnd = certPosition[i+1] - 1
+          else
+            certEnd = raw_cert.length - 1
+          end
+          certLink = OpenSSL::X509::Certificate.new(raw_cert[certPosition[i]..certEnd])
+          @ssl_context.extra_chain_cert.push(certLink)
+        end
+      end
+
+      @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
+      if @ssl_verify
+        @cert_store = OpenSSL::X509::Store.new
+        # Load the system default certificate path to the store
+        @cert_store.set_default_paths
+        if File.directory?(@ssl_cacert)
+          @cert_store.add_path(@ssl_cacert)
+        else
+          @cert_store.add_file(@ssl_cacert)
+        end
+        @ssl_context.cert_store = @cert_store
+        @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+      end
+    rescue => e
+      @logger.error("Could not inititalize SSL context", :exception => e, :backtrace => e.backtrace)
+      raise e
+    end
+
+    @ssl_context
+  end
+
+  def new_server_socket
+    @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}")
+
+    begin
+      socket = TCPServer.new(@host, @port)
+    rescue Errno::EADDRINUSE
+      @logger.error("Could not start TCP server: Address in use", :host => @host, :port => @port)
+      raise
+    end
+
+    @ssl_enable ? OpenSSL::SSL::SSLServer.new(socket, ssl_context) : socket
+  end
+
+  def new_client_socket
+    socket = TCPSocket.new(@host, @port)
+
+    if @ssl_enable
+      socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+      socket.connect
+    end
+
+    @logger.debug? && @logger.debug("Opened connection", :client => "#{socket.peer}")
+
+    socket
+  rescue OpenSSL::SSL::SSLError => e
+    @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
+    # catch all rescue nil on close to discard any close errors or invalid socket
+    socket.close rescue nil
+    sleep(1) # prevent hammering peer
+    retry
+  rescue
+    # if this exception occured while the plugin is stopping
+    # just ignore and exit
+    raise unless stop?
+  end
+
   # threadsafe sockets bookkeeping
 
-  def set_client_socket(socket)
+  def client_socket=(socket)
     @socket_mutex.synchronize{@client_socket = socket}
   end
 
