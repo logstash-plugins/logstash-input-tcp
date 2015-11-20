@@ -158,7 +158,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   rescue Errno::ECONNRESET
     @logger.debug? && @logger.debug("Connection reset by peer", :client => socket.peer)
   rescue OpenSSL::SSL::SSLError => e
-    # Fixes issue #23
+    # Fixes issue #23 
     @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
     socket.close rescue nil
   rescue => e
