@@ -157,6 +157,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @logger.debug? && @logger.debug("Connection closed", :client => socket.peer)
   rescue Errno::ECONNRESET
     @logger.debug? && @logger.debug("Connection reset by peer", :client => socket.peer)
+  rescue OpenSSL::SSL::SSLError => e
+    # Fixes issue #23
+    @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
+    socket.close rescue nil
   rescue => e
     # if plugin is stopping, don't bother logging it as an error
     !stop? && @logger.error("An error occurred. Closing connection", :client => socket.peer, :exception => e, :backtrace => e.backtrace)
