@@ -1,3 +1,6 @@
+## 2.1.0
+ - Added the receiving port in the event payload, fixes #4
+
 ## 2.0.5
  - Fixed malformed SSL crashing Logstash, see https://github.com/logstash-plugins/logstash-input-tcp/pull/25
 
