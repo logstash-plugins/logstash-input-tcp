@@ -206,7 +206,29 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     begin
       @ssl_context = OpenSSL::SSL::SSLContext.new
-      @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
+	  raw_cert = File.read(@ssl_cert)
+      @ssl_context.cert = OpenSSL::X509::Certificate.new(raw_cert)
+
+      # Parse chain certificates from @ssl_cert
+      certPosition = [0]
+      while certPosition[-1]
+        certPosition.push(raw_cert.index("-----B", certPosition[-1] + 1))
+      end
+
+      # Gather chain from certificate
+      if certPosition.length > 2
+      @ssl_context.extra_chain_cert = Array.new
+        for i in 1..(certPosition.length - 2)
+          if certPosition[i+1]
+            certEnd = certPosition[i+1] - 1
+          else
+            certEnd = raw_cert.length - 1
+          end
+          certLink = OpenSSL::X509::Certificate.new(raw_cert[certPosition[i]..certEnd])
+          @ssl_context.extra_chain_cert.push(certLink)
+        end
+      end
+
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
       if @ssl_verify
         @cert_store = OpenSSL::X509::Store.new
