@@ -269,6 +269,12 @@ describe LogStash::Inputs::Tcp do
         end
       end
 
+      it "should add the host and port to the generated event" do
+        events.each do |event|
+          expect(event["host"]).to eq("127.0.0.1")
+          expect(event["port"]).to be_an(Fixnum)
+        end
+      end
     end
 
     it_behaves_like "an interruptible input plugin" do
