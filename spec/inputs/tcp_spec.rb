@@ -285,7 +285,7 @@ describe LogStash::Inputs::Tcp do
         subject(:input) { LogStash::Plugin.lookup("input", "tcp").new(config) }
 
         let(:config) do
-          { "host" => "0.0.0.0", "port" => port,
+          { "host" => "0.0.0.0", "port" => port, "ssl_verify" => false,
             "ssl_enable" => true, "ssl_cert" => certificate[0].path, "ssl_key" => certificate[1].path }
         end
 
