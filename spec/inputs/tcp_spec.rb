@@ -315,8 +315,74 @@ describe LogStash::Inputs::Tcp do
 
         describe "when ssl_verify is on" do
 
+          let(:chain_of_certificates) { helper.chain_of_certificates }
+
+          let(:ssl_context) do
+            ssl_context      = OpenSSL::SSL::SSLContext.new
+            ssl_context.cert = OpenSSL::X509::Certificate.new(client_certificate)
+            ssl_context.key  = OpenSSL::PKey::RSA.new(client_key)
+            ssl_context
+          end
+
+          context "and the verification fails" do
+
+            let(:config) do
+              { "host" => "0.0.0.0", "port" => port,
+                "ssl_enable" => true, "ssl_verify" => true,
+                "ssl_cert" => chain_of_certificates[:a_cert].path, "ssl_key" => chain_of_certificates[:a_key].path }
+            end
+
+            let(:client_certificate) { File.read(chain_of_certificates[:b_cert].path) }
+            let(:client_key) { File.read(chain_of_certificates[:b_key].path) }
+
+            let(:socket) do
+              client = TCPSocket.new("127.0.0.1", port)
+              OpenSSL::SSL::SSLSocket.new(client, ssl_context)
+            end
+
+            it "should raise an exception when connecting" do
+              helper.pipelineless_input(subject, 0) do
+                expect { socket.connect }.to raise_error
+                socket.close rescue nil
+              end
+            end
+          end
+          context "and using the root CA" do
+
+            let(:config) do
+              { "host" => "0.0.0.0", "port" => port,
+                "ssl_enable" => true, "ssl_verify" => true,
+                "ssl_cert" => chain_of_certificates[:a_cert].path, "ssl_key" => chain_of_certificates[:a_key].path,
+                "ssl_cacert" => chain_of_certificates[:root_ca].path }
+            end
+
+            let(:client_certificate) { File.read(chain_of_certificates[:aa_cert].path) }
+            let(:client_key) { File.read(chain_of_certificates[:aa_key].path) }
+
+            let(:events) do
+              socket = Stud::try(5.times) do
+                socket = TCPSocket.new("127.0.0.1", port)
+                OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+              end
+              result = helper.pipelineless_input(subject, nevents) do
+                socket.connect
+                nevents.times do |i|
+                  socket.puts("msg #{i}")
+                  socket.flush
+                end
+              end
+              socket.close rescue nil
+
+              result
+            end
+
+            it "should receive events" do
+              expect(events.size).to be(nevents)
+            end
+
+          end
+
           context "using an extra chain of certificates" do
-            let(:chain_of_certificates) { helper.chain_of_certificates }
 
             let(:config) do
               { "host" => "0.0.0.0", "port" => port,
@@ -325,11 +391,11 @@ describe LogStash::Inputs::Tcp do
                 "ssl_extra_chain_certs" => [ chain_of_certificates[:root_ca].path, chain_of_certificates[:a_cert].path, chain_of_certificates[:b_cert].path ] }
             end
 
+            let(:client_certificate) { File.read(chain_of_certificates[:c_cert].path) }
+            let(:client_key) { File.read(chain_of_certificates[:c_key].path) }
+
             let(:events) do
-              socket = Stud::try(10.times) do
-                ssl_context         = OpenSSL::SSL::SSLContext.new
-                ssl_context.cert    = OpenSSL::X509::Certificate.new(File.read(chain_of_certificates[:c_cert].path))
-                ssl_context.key     =  OpenSSL::PKey::RSA.new(File.open(chain_of_certificates[:c_key].path))
+              socket = Stud::try(5.times) do
                 socket = TCPSocket.new("127.0.0.1", port)
                 OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
               end
