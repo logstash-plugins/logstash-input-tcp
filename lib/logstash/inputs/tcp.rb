@@ -35,7 +35,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   # Verify the identity of the other end of the SSL connection against the CA.
   # For input, sets the field `sslsubject` to that of the client certificate.
-  config :ssl_verify, :validate => :boolean, :default => false
+  config :ssl_verify, :validate => :boolean, :default => true
 
   # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
   config :ssl_cacert, :validate => :path, :deprecated => "This setting is deprecated in favor of extra_chain_cert as it sets a more clear expectation to add more X509 certificates to the store"
