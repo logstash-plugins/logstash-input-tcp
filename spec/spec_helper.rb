@@ -29,13 +29,15 @@ class TcpHelpers
 
   def chain_of_certificates
     root_ca, root_key = build_root_ca
-    a_cert, a_key = build_certificate(root_ca, root_key, "A_Cert")
+    a_cert,   a_key = build_certificate(root_ca, root_key, "A_Cert")
+    aa_cert, aa_key = build_certificate(root_ca, root_key, "AA_Cert")
     b_cert, b_key = build_certificate(a_cert, a_key, "B_Cert")
     c_cert, c_key = build_certificate(b_cert, b_key, "C_Cert")
     { :root_ca => new_temp_file('', root_ca), :root_key => new_temp_file('', root_key),
-      :a_cert => new_temp_file('', a_cert), :a_key => new_temp_file('', a_key),
-      :b_cert => new_temp_file('', b_cert), :b_key => new_temp_file('', b_key),
-      :c_cert => new_temp_file('', c_cert), :c_key => new_temp_file('', c_key)}
+      :a_cert  => new_temp_file('', a_cert),  :a_key    => new_temp_file('', a_key),
+      :aa_cert => new_temp_file('', aa_cert), :aa_key   => new_temp_file('', aa_key),
+      :b_cert  => new_temp_file('', b_cert),  :b_key    => new_temp_file('', b_key),
+      :c_cert  => new_temp_file('', c_cert),  :c_key    => new_temp_file('', c_key)}
   end
 
   private
