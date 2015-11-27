@@ -38,7 +38,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config :ssl_verify, :validate => :boolean, :default => false
 
   # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
-  config :ssl_cacert, :validate => :path
+  config :ssl_cacert, :validate => :path, :deprecated => "This setting is deprecated in favor of extra_chain_cert as it sets a more clear expectation to add more X509 certificates to the store"
 
   # SSL certificate path
   config :ssl_cert, :validate => :path
@@ -48,6 +48,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   # SSL key passphrase
   config :ssl_key_passphrase, :validate => :password, :default => nil
+
+  # An Array of extra X509 certificates to be added to the certificate chain.
+  # Useful when the CA chain is not necessary in the system store.
+  config :ssl_extra_chain_certs, :validate => :array, :default => []
 
   def initialize(*args)
     super(*args)
@@ -209,15 +213,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
       if @ssl_verify
-        @cert_store = OpenSSL::X509::Store.new
-        # Load the system default certificate path to the store
-        @cert_store.set_default_paths
-        if File.directory?(@ssl_cacert)
-          @cert_store.add_path(@ssl_cacert)
-        else
-          @cert_store.add_file(@ssl_cacert)
-        end
-        @ssl_context.cert_store = @cert_store
+        @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
     rescue => e
@@ -228,9 +224,22 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @ssl_context
   end
 
+  def load_cert_store
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.set_default_paths
+    if File.directory?(@ssl_cacert)
+      cert_store.add_path(@ssl_cacert)
+    else
+      cert_store.add_file(@ssl_cacert)
+    end if @ssl_cacert
+    @ssl_extra_chain_certs.each do |cert|
+      cert_store.add_file(cert)
+    end
+    cert_store
+  end
+
   def new_server_socket
     @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}")
-
     begin
       socket = TCPServer.new(@host, @port)
     rescue Errno::EADDRINUSE

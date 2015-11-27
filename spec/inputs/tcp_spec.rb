@@ -285,7 +285,8 @@ describe LogStash::Inputs::Tcp do
         subject(:input) { LogStash::Plugin.lookup("input", "tcp").new(config) }
 
         let(:config) do
-          { "host" => "0.0.0.0", "port" => port, "ssl_enable" => true, "ssl_cert" => certificate[0].path, "ssl_key" => certificate[1].path }
+          { "host" => "0.0.0.0", "port" => port,
+            "ssl_enable" => true, "ssl_cert" => certificate[0].path, "ssl_key" => certificate[1].path }
         end
 
         let(:events) do
@@ -310,6 +311,44 @@ describe LogStash::Inputs::Tcp do
 
         it "should receive events" do
           expect(events.size).to be(nevents)
+        end
+
+        describe "when ssl_verify is on" do
+
+          context "using an extra chain of certificates" do
+            let(:chain_of_certificates) { helper.chain_of_certificates }
+
+            let(:config) do
+              { "host" => "0.0.0.0", "port" => port,
+                "ssl_enable" => true, "ssl_verify" => true,
+                "ssl_cert" => chain_of_certificates[:b_cert].path, "ssl_key" => chain_of_certificates[:b_key].path,
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:root_ca].path, chain_of_certificates[:a_cert].path, chain_of_certificates[:b_cert].path ] }
+            end
+
+            let(:events) do
+              socket = Stud::try(10.times) do
+                ssl_context         = OpenSSL::SSL::SSLContext.new
+                ssl_context.cert    = OpenSSL::X509::Certificate.new(File.read(chain_of_certificates[:c_cert].path))
+                ssl_context.key     =  OpenSSL::PKey::RSA.new(File.open(chain_of_certificates[:c_key].path))
+                socket = TCPSocket.new("127.0.0.1", port)
+                OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+              end
+              result = helper.pipelineless_input(subject, nevents) do
+                socket.connect
+                nevents.times do |i|
+                  socket.puts("msg #{i}")
+                  socket.flush
+                end
+              end
+              socket.close rescue nil
+
+              result
+            end
+
+            it "should receive events" do
+              expect(events.size).to be(nevents)
+            end
+          end
         end
 
       end
