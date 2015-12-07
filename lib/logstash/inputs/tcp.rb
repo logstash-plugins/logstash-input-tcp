@@ -38,7 +38,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config :ssl_verify, :validate => :boolean, :default => true
 
   # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
-  config :ssl_cacert, :validate => :path, :deprecated => "This setting is deprecated in favor of extra_chain_cert as it sets a more clear expectation to add more X509 certificates to the store"
+  config :ssl_cacert, :validate => :path, :deprecated => "This setting is deprecated in favor of ssl_extra_chain_certs as it sets a more clear expectation to add more X509 certificates to the store"
 
   # SSL certificate path
   config :ssl_cert, :validate => :path
