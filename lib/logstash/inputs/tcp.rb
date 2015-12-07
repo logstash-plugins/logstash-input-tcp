@@ -162,6 +162,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @logger.debug? && @logger.debug("Connection closed", :client => socket.peer)
   rescue Errno::ECONNRESET
     @logger.debug? && @logger.debug("Connection reset by peer", :client => socket.peer)
+  rescue IOError => e
+    # Catch IOError: closed stream
+    @logger.error("IO Error", :exception => e, :backtrace => e.backtrace)
   rescue OpenSSL::SSL::SSLError => e
     # Fixes issue #23
     @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
