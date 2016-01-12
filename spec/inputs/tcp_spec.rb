@@ -33,7 +33,7 @@ describe LogStash::Inputs::Tcp do
 
   it "should read plain with unicode" do
     event_count = 10
-    port = 5511
+    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -61,7 +61,7 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with plain codec and ISO-8859-1 charset" do
-    port = 5513
+    port = rand(1024..65535)
     charset = "ISO-8859-1"
     conf = <<-CONFIG
       input {
@@ -89,7 +89,7 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json codec" do
-    port = 5514
+    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -124,7 +124,7 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json codec (testing 'host' handling)" do
-    port = 5517
+    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -151,7 +151,7 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json_lines codec" do
-    port = 5515
+    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -190,7 +190,7 @@ describe LogStash::Inputs::Tcp do
 
   it "should one message per connection" do
     event_count = 10
-    port = 5516
+    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
