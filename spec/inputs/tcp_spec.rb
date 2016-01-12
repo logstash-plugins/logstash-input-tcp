@@ -167,16 +167,17 @@ describe LogStash::Inputs::Tcp do
       "baz" => { "1" => "2" },
       "idx" => 0
     }
+    event_count = 5
 
     events = input(conf) do |pipeline, queue|
       socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
-      (1..5).each do |idx|
+      (1..event_count).each do |idx|
         data["idx"] = idx
         socket.puts(LogStash::Json.dump(data) + "\n")
       end
       socket.close
 
-      (1..5).map{queue.pop}
+      (1..event_count).map{queue.pop}
     end
 
     events.each_with_index do |event, idx|
@@ -285,12 +286,17 @@ describe LogStash::Inputs::Tcp do
         subject(:input) { LogStash::Plugin.lookup("input", "tcp").new(config) }
 
         let(:config) do
-          { "host" => "0.0.0.0", "port" => port, "ssl_verify" => false,
-            "ssl_enable" => true, "ssl_cert" => certificate[0].path, "ssl_key" => certificate[1].path }
+          {
+            "host" => "0.0.0.0",
+            "port" => port,
+            "ssl_verify" => false,
+            "ssl_enable" => true,
+            "ssl_cert" => certificate[0].path,
+            "ssl_key" => certificate[1].path
+          }
         end
 
         let(:events) do
-
           socket = Stud::try(5.times) do
             ssl_context = OpenSSL::SSL::SSLContext.new
             socket = TCPSocket.new("127.0.0.1", port)
@@ -313,6 +319,12 @@ describe LogStash::Inputs::Tcp do
           expect(events.size).to be(nevents)
         end
 
+        it "should not contain sslsubject" do
+          events.each do |event|
+            expect(event["sslsubject"]).to be_nil
+          end
+        end
+
         describe "when ssl_verify is on" do
 
           let(:chain_of_certificates) { helper.chain_of_certificates }
@@ -327,9 +339,14 @@ describe LogStash::Inputs::Tcp do
           context "and the verification fails" do
 
             let(:config) do
-              { "host" => "0.0.0.0", "port" => port,
-                "ssl_enable" => true, "ssl_verify" => true,
-                "ssl_cert" => chain_of_certificates[:a_cert].path, "ssl_key" => chain_of_certificates[:a_key].path }
+              {
+                "host" => "0.0.0.0",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_verify" => true,
+                "ssl_cert" => chain_of_certificates[:a_cert].path,
+                "ssl_key" => chain_of_certificates[:a_key].path
+              }
             end
 
             let(:client_certificate) { File.read(chain_of_certificates[:b_cert].path) }
@@ -347,13 +364,19 @@ describe LogStash::Inputs::Tcp do
               end
             end
           end
+
           context "and using the root CA" do
 
             let(:config) do
-              { "host" => "0.0.0.0", "port" => port,
-                "ssl_enable" => true, "ssl_verify" => true,
-                "ssl_cert" => chain_of_certificates[:a_cert].path, "ssl_key" => chain_of_certificates[:a_key].path,
-                "ssl_cacert" => chain_of_certificates[:root_ca].path }
+              {
+                "host" => "0.0.0.0",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_verify" => true,
+                "ssl_cert" => chain_of_certificates[:a_cert].path,
+                "ssl_key" => chain_of_certificates[:a_key].path,
+                "ssl_cacert" => chain_of_certificates[:root_ca].path
+              }
             end
 
             let(:client_certificate) { File.read(chain_of_certificates[:aa_cert].path) }
@@ -364,6 +387,7 @@ describe LogStash::Inputs::Tcp do
                 socket = TCPSocket.new("127.0.0.1", port)
                 OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
               end
+
               result = helper.pipelineless_input(subject, nevents) do
                 socket.connect
                 nevents.times do |i|
@@ -371,6 +395,7 @@ describe LogStash::Inputs::Tcp do
                   socket.flush
                 end
               end
+
               socket.close rescue nil
 
               result
@@ -380,15 +405,25 @@ describe LogStash::Inputs::Tcp do
               expect(events.size).to be(nevents)
             end
 
+            it "should contain sslsubject" do
+              events.each do |event|
+                expect(event["sslsubject"]).to eq("/DC=org/DC=ruby-lang/CN=RubyAA_Cert")
+              end
+            end
           end
 
           context "using an extra chain of certificates" do
 
             let(:config) do
-              { "host" => "0.0.0.0", "port" => port,
-                "ssl_enable" => true, "ssl_verify" => true,
-                "ssl_cert" => chain_of_certificates[:b_cert].path, "ssl_key" => chain_of_certificates[:b_key].path,
-                "ssl_extra_chain_certs" => [ chain_of_certificates[:root_ca].path, chain_of_certificates[:a_cert].path, chain_of_certificates[:b_cert].path ] }
+              {
+                "host" => "0.0.0.0",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_verify" => true,
+                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_key" => chain_of_certificates[:b_key].path,
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:root_ca].path, chain_of_certificates[:a_cert].path, chain_of_certificates[:b_cert].path ]
+              }
             end
 
             let(:client_certificate) { File.read(chain_of_certificates[:c_cert].path) }
@@ -399,6 +434,7 @@ describe LogStash::Inputs::Tcp do
                 socket = TCPSocket.new("127.0.0.1", port)
                 OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
               end
+
               result = helper.pipelineless_input(subject, nevents) do
                 socket.connect
                 nevents.times do |i|
@@ -406,6 +442,7 @@ describe LogStash::Inputs::Tcp do
                   socket.flush
                 end
               end
+
               socket.close rescue nil
 
               result
@@ -414,14 +451,19 @@ describe LogStash::Inputs::Tcp do
             it "should receive events" do
               expect(events.size).to be(nevents)
             end
+
+            it "should contain sslsubject" do
+              events.each do |event|
+                expect(event["sslsubject"]).to eq("/DC=org/DC=ruby-lang/CN=RubyC_Cert")
+              end
+            end
           end
         end
-
       end
     end
+
     it_behaves_like "an interruptible input plugin" do
       let(:config) { { "port" => port } }
     end
   end
-
 end

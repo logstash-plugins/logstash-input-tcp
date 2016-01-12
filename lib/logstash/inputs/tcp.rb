@@ -153,7 +153,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       codec.decode(read(socket)) do |event|
         event["host"] ||= client_address
         event["port"] ||= client_port
-        event["sslsubject"] ||= socket.peer_cert.subject if @ssl_enable && @ssl_verify
+        event["sslsubject"] ||= socket.peer_cert.subject.to_s if @ssl_enable && @ssl_verify
         decorate(event)
         output_queue << event
       end
@@ -176,7 +176,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     codec.respond_to?(:flush) && codec.flush do |event|
       event["host"] ||= client_address
       event["port"] ||= client_port
-      event["sslsubject"] ||= socket.peer_cert.subject if @ssl_enable && @ssl_verify
+      event["sslsubject"] ||= socket.peer_cert.subject.to_s if @ssl_enable && @ssl_verify
       decorate(event)
       output_queue << event
     end
