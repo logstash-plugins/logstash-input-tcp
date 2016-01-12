@@ -1,5 +1,8 @@
+## 3.0.1
+ - properly convert sslsubject to string before assigning to event field, added specs, see https://github.com/logstash-plugins/logstash-input-tcp/pull/38
+
 ## 3.0.0
- - Deprecate ssl_cacert as it's confusing, does it job but when willing to add a chain of certificated the name and behaviour is a bit confusing. 
+ - Deprecate ssl_cacert as it's confusing, does it job but when willing to add a chain of certificated the name and behaviour is a bit confusing.
  - Add ssl_extra_chain_certs that allows you to specify a list of certificates path that will be added to the CAStore.
  - Make ssl_verify=true as a default value, if using ssl and performing validation is not reasonable as security might be compromised.
  - Add tests to verify behaviour under different SSL connection circumstances.
