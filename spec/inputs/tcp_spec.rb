@@ -124,7 +124,7 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json codec (testing 'host' handling)" do
-    port = 5514
+    port = 5517
     conf = <<-CONFIG
       input {
         tcp {
