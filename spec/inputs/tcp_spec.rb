@@ -264,7 +264,11 @@ describe LogStash::Inputs::Tcp do
             "port" => port,
             "ssl_enable" => true,
             "ssl_cert" => certificate_file.path,
-            "ssl_key" => key_file.path
+            "ssl_key" => key_file.path,
+
+            # Trust our self-signed cert.
+            # TODO(sissel): Make this a separate certificate for the client
+            "ssl_extra_chain_certs" => certificate_file.path
           }
         end
 
@@ -288,19 +292,24 @@ describe LogStash::Inputs::Tcp do
         context "with a poorly-behaving client" do
           let!(:input_task) { Stud::Task.new { input.run(queue) } }
 
+          after { input.close }
+
           context "that disconnects before doing TLS handshake" do
             before do
               client = TCPSocket.new("127.0.0.1", port)
               client.close
             end
+
             it "should not negatively impact the plugin" do
-              # TODO(sissel): Look for a better way to detect this failure besides a sleep/wait.
+              # TODO(sissel): Look for a better way to detect this failure
+              # besides a sleep/wait.
               result = input_task.thread.join(0.5)
               expect(result).to be_nil
             end
           end
 
           context "that sends garbage instead of TLS handshake" do
+            let!(:input_task) { Stud::Task.new { input.run(queue) } }
             let(:max_length) { 1000 }
             let(:garbage) { Flores::Random.iterations(max_length).collect { Flores::Random.integer(1...255) }.pack("C*") }
             before do
@@ -311,7 +320,6 @@ describe LogStash::Inputs::Tcp do
               client.write(garbage)
               client.flush
               Thread.new { sleep(1); client.close }
-
             end
             it "should not negatively impact the plugin" do
               # TODO(sissel): Look for a better way to detect this failure besides a sleep/wait.
@@ -319,7 +327,37 @@ describe LogStash::Inputs::Tcp do
               expect(result).to be_nil
             end
           end
-          context "connection was healthy but now has garbage or corruption"
+
+          context "connection was healthy but now has garbage or corruption" do
+            let!(:input_task) { Stud::Task.new { input.run(queue) } }
+            let(:tcp) { TCPSocket.new("127.0.0.1", port) }
+            let(:sslcontext) { OpenSSL::SSL::SSLContext.new }
+            let(:sslsocket) { OpenSSL::SSL::SSLSocket.new(tcp, sslcontext) }
+            let(:max_length) { 1000 }
+            let(:garbage) { Flores::Random.iterations(max_length).collect { Flores::Random.integer(1...255) }.pack("C*") }
+
+            before do
+              sslcontext.cert = certificate
+              sslcontext.key = key
+              sslcontext.verify_mode = OpenSSL::SSL::VERIFY_NONE
+
+              sslsocket.connect
+              sslsocket.write("Hello world\n")
+
+              # Assertion to verify this test is actually sending something.
+              expect(garbage.length).to be > 0
+              tcp.write(garbage)
+              tcp.flush
+              sslsocket.close
+              tcp.close
+            end
+
+            it "should not negatively impact the plugin" do
+              # TODO(sissel): Look for a better way to detect this failure besides a sleep/wait.
+              result = input_task.thread.join(0.5)
+              expect(result).to be_nil
+            end
+          end
         end
 
         # TODO(sissel): Spec multiple clients where only one is bad.
