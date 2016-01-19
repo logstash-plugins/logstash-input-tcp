@@ -149,6 +149,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def handle_socket(socket, client_address, client_port, output_queue, codec)
+    peer = "#{client_address}:#{client_port}"
     while !stop?
       codec.decode(read(socket)) do |event|
         event["host"] ||= client_address
@@ -159,16 +160,16 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       end
     end
   rescue EOFError
-    @logger.debug? && @logger.debug("Connection closed", :client => socket.peer)
+    @logger.debug? && @logger.debug("Connection closed", :client => peer)
   rescue Errno::ECONNRESET
-    @logger.debug? && @logger.debug("Connection reset by peer", :client => socket.peer)
+    @logger.debug? && @logger.debug("Connection reset by peer", :client => peer)
   rescue OpenSSL::SSL::SSLError => e
     # Fixes issue #23
     @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
     socket.close rescue nil
   rescue => e
     # if plugin is stopping, don't bother logging it as an error
-    !stop? && @logger.error("An error occurred. Closing connection", :client => socket.peer, :exception => e, :backtrace => e.backtrace)
+    !stop? && @logger.error("An error occurred. Closing connection", :client => peer, :exception => e, :backtrace => e.backtrace)
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
