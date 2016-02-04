@@ -1,3 +1,7 @@
+## 3.0.2
+- Fixed a bug where previous connection would accidentally be closed when accepting new socket connection
+- Fixed an issue with log message which used a closed socket's peer address 
+
 ## 3.0.1
  - properly convert sslsubject to string before assigning to event field, added specs, see https://github.com/logstash-plugins/logstash-input-tcp/pull/38
 
