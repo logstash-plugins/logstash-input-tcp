@@ -1,3 +1,5 @@
+# 3.0.3
+  - New dependency requirements for logstash-core for the 5.0 release
 ## 3.0.2
 - Fixed a bug where previous connection would accidentally be closed when accepting new socket connection
 - Fixed an issue with log message which used a closed socket's peer address 
