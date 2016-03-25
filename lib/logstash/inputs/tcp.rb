@@ -211,7 +211,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     begin
       @ssl_context = OpenSSL::SSL::SSLContext.new
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
-      @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
+      @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase.value)
       if @ssl_verify
         @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT

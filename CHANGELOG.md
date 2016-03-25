@@ -1,3 +1,5 @@
+# 3.0.5
+ - Fixed a bug where using a certificate with a passphrase wouldn't work.
 # 3.0.4
   - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
 # 3.0.3
