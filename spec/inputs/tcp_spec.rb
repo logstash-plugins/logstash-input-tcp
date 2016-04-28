@@ -59,7 +59,7 @@ describe LogStash::Inputs::Tcp do
 
     insist { events.length } == event_count
     event_count.times do |i|
-      insist { events[i]["message"] } == "#{i} ☹"
+      insist { events[i].get("message") } == "#{i} ☹"
     end
   end
 
@@ -86,9 +86,9 @@ describe LogStash::Inputs::Tcp do
     end
 
     # Make sure the 0xA3 latin-1 code converts correctly to UTF-8.
-    insist { event["message"].size } == 1
-    insist { event["message"].bytesize } == 2
-    insist { event["message"] } == "£"
+    insist { event.get("message").size } == 1
+    insist { event.get("message").bytesize } == 2
+    insist { event.get("message") } == "£"
   end
 
   it "should read events with json codec" do
@@ -117,13 +117,13 @@ describe LogStash::Inputs::Tcp do
       queue.pop
     end
 
-    insist { event["hello"] } == data["hello"]
-    insist { event["foo"].to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
-    insist { event["baz"] } == data["baz"]
+    insist { event.get("hello") } == data["hello"]
+    insist { event.get("foo").to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
+    insist { event.get("baz") } == data["baz"]
 
     # Make sure the tcp input, w/ json codec, uses the event's 'host' value,
     # if present, instead of providing its own
-    insist { event["host"] } == data["host"]
+    insist { event.get("host") } == data["host"]
   end
 
   it "should read events with json codec (testing 'host' handling)" do
@@ -149,7 +149,7 @@ describe LogStash::Inputs::Tcp do
       queue.pop
     end
 
-    insist { event["hello"] } == data["hello"]
+    insist { event.get("hello") } == data["hello"]
     insist { event }.include?("host")
   end
 
@@ -184,10 +184,10 @@ describe LogStash::Inputs::Tcp do
     end
 
     events.each_with_index do |event, idx|
-      insist { event["hello"] } == data["hello"]
-      insist { event["foo"].to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
-      insist { event["baz"] } == data["baz"]
-      insist { event["idx"] } == idx + 1
+      insist { event.get("hello") } == data["hello"]
+      insist { event.get("foo").to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
+      insist { event.get("baz") } == data["baz"]
+      insist { event.get("idx") } == idx + 1
     end # do
   end # describe
 
@@ -211,11 +211,11 @@ describe LogStash::Inputs::Tcp do
       end
 
       # since each message is sent on its own tcp connection & thread, exact receiving order cannot be garanteed
-      event_count.times.collect{queue.pop}.sort_by{|event| event["message"]}
+      event_count.times.collect{queue.pop}.sort_by{|event| event.get("message")}
     end
 
     event_count.times do |i|
-      insist { events[i]["message"] } == "#{i}"
+      insist { events[i].get("message") } == "#{i}"
     end
   end
 
@@ -252,8 +252,8 @@ describe LogStash::Inputs::Tcp do
 
       context "when ssl_enable is true" do
         let(:pki) { Flores::PKI.generate }
-        let(:certificate) { pki[0] } 
-        let(:key) { pki[1] } 
+        let(:certificate) { pki[0] }
+        let(:key) { pki[1] }
         let(:certificate_file) { Stud::Temporary.file }
         let(:key_file) { Stud::Temporary.file }
         let(:queue) { Queue.new }

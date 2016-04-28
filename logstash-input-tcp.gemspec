@@ -19,8 +19,11 @@ Gem::Specification.new do |s|
   s.metadata = { "logstash_plugin" => "true", "logstash_group" => "input" }
 
   # Gem dependencies
-  s.add_runtime_dependency "logstash-core-plugin-api", "~> 1.0"
+  s.add_runtime_dependency "logstash-core-plugin-api", "~> 2.0"
 
+  # line vs streaming codecs required for fix_streaming_codecs
+  # TODO: fix_streaming_codecs should be refactored to not
+  # require the codecs to be installed.
   s.add_runtime_dependency 'logstash-codec-plain'
   s.add_runtime_dependency 'logstash-codec-line'
   s.add_runtime_dependency 'logstash-codec-json'

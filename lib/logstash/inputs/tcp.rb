@@ -1,4 +1,4 @@
-# encoding: utf-8
+  # encoding: utf-8
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 
@@ -52,6 +52,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # An Array of extra X509 certificates to be added to the certificate chain.
   # Useful when the CA chain is not necessary in the system store.
   config :ssl_extra_chain_certs, :validate => :array, :default => []
+
+  HOST_FIELD = "host".freeze
+  PORT_FIELD = "port".freeze
+  SSLSUBJECT_FIELD = "sslsubject".freeze
 
   def initialize(*args)
     super(*args)
@@ -151,9 +155,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     peer = "#{client_address}:#{client_port}"
     while !stop?
       codec.decode(read(socket)) do |event|
-        event["host"] ||= client_address
-        event["port"] ||= client_port
-        event["sslsubject"] ||= socket.peer_cert.subject.to_s if @ssl_enable && @ssl_verify
+        event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
+        event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
+        event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
+
         decorate(event)
         output_queue << event
       end
@@ -174,9 +179,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     socket.close rescue nil
 
     codec.respond_to?(:flush) && codec.flush do |event|
-      event["host"] ||= client_address
-      event["port"] ||= client_port
-      event["sslsubject"] ||= socket.peer_cert.subject.to_s if @ssl_enable && @ssl_verify
+      event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
+      event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
+      event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
+
       decorate(event)
       output_queue << event
     end
