@@ -1,3 +1,5 @@
+## 4.0.0
+  - Update the plugin to the version 2.0 of the plugin api, this change is required for Logstash 5.0 compatibility. See https://github.com/elastic/logstash/issues/5141
 # 3.0.5
  - Fixed a bug where using a certificate with a passphrase wouldn't work.
 # 3.0.4
