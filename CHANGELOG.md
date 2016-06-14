@@ -1,12 +1,14 @@
+## 3.0.6
+ - Change the log level of the SSLError for the handshake from **error** to **debug** https://github.com/logstash-plugins/logstash-input-tcp/pull/53
 # 3.0.5
  - Fixed a bug where using a certificate with a passphrase wouldn't work.
 # 3.0.4
-  - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
+ - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
 # 3.0.3
-  - New dependency requirements for logstash-core for the 5.0 release
+ - New dependency requirements for logstash-core for the 5.0 release
 ## 3.0.2
-- Fixed a bug where previous connection would accidentally be closed when accepting new socket connection
-- Fixed an issue with log message which used a closed socket's peer address 
+ - Fixed a bug where previous connection would accidentally be closed when accepting new socket connection
+ - Fixed an issue with log message which used a closed socket's peer address 
 
 ## 3.0.1
  - properly convert sslsubject to string before assigning to event field, added specs, see https://github.com/logstash-plugins/logstash-input-tcp/pull/38
