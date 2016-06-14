@@ -118,7 +118,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         server_connection_thread(output_queue, socket)
       rescue OpenSSL::SSL::SSLError => e
         # log error, close socket, accept next connection
-        @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
+        @logger.debug? && @logger.debug("SSL Error", :exception => e, :backtrace => e.backtrace)
       rescue => e
         # if this exception occured while the plugin is stopping
         # just ignore and exit
