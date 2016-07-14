@@ -1,3 +1,6 @@
+## 4.0.3
+  - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
+
 ## 4.0.2
  - Change the log level of the SSLError for the handshake from **error** to **debug** https://github.com/logstash-plugins/logstash-input-tcp/pull/53
 ## 4.0.1

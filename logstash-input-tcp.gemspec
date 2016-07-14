@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name          = 'logstash-input-tcp'
-  s.version         = '4.0.2'
+  s.version         = '4.0.3'
   s.licenses      = ['Apache License (2.0)']
   s.summary       = "Read events over a TCP socket."
   s.description     = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"
@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.metadata = { "logstash_plugin" => "true", "logstash_group" => "input" }
 
   # Gem dependencies
-  s.add_runtime_dependency "logstash-core-plugin-api", "~> 2.0"
+  s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
   # line vs streaming codecs required for fix_streaming_codecs
   # TODO: fix_streaming_codecs should be refactored to not
