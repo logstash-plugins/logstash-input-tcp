@@ -81,6 +81,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     # a situation where register is called but not run & stop.
 
     self.server_socket = new_server_socket if server?
+
+    @metric_errors = metric.namespace(:errors)
   end
 
   def run(output_queue)
@@ -115,9 +117,11 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       begin
         socket = add_connection_socket(server_socket.accept)
         # start a new thread for each connection.
+        metric.increment(:connections)
         server_connection_thread(output_queue, socket)
       rescue OpenSSL::SSL::SSLError => e
         # log error, close socket, accept next connection
+        @metric_errors.increment(:ssl)
         @logger.debug? && @logger.debug("SSL Error", :exception => e, :backtrace => e.backtrace)
       rescue => e
         # if this exception occured while the plugin is stopping
@@ -133,6 +137,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def run_client(output_queue)
     while !stop?
       self.client_socket = new_client_socket
+      metric.increment(:connections)
       handle_socket(client_socket, client_socket.peeraddr[3], client_socket.peeraddr[1], output_queue, @codec.clone)
     end
   ensure
@@ -146,6 +151,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
         handle_socket(s, s.peeraddr[3], s.peeraddr[1], q, @codec.clone)
       ensure
+        metric.decrement(:connections)
         delete_connection_socket(s)
       end
     end
@@ -155,6 +161,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     peer = "#{client_address}:#{client_port}"
     while !stop?
       codec.decode(read(socket)) do |event|
+        metric.increment(:events)
         event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
         event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
         event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
@@ -164,11 +171,14 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       end
     end
   rescue EOFError
+    @metric_errors.increment(:connection)
     @logger.debug? && @logger.debug("Connection closed", :client => peer)
   rescue Errno::ECONNRESET
+    @metric_errors.increment(:connection)
     @logger.debug? && @logger.debug("Connection reset by peer", :client => peer)
   rescue OpenSSL::SSL::SSLError => e
     # Fixes issue #23
+    @metric_errors.increment(:ssl)
     @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
     socket.close rescue nil
   rescue => e
