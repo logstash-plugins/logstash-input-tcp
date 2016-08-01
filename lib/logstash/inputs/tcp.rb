@@ -171,7 +171,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       end
     end
   rescue EOFError
-    @metric_errors.increment(:connection)
     @logger.debug? && @logger.debug("Connection closed", :client => peer)
   rescue Errno::ECONNRESET
     @metric_errors.increment(:connection)
