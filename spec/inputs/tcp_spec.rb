@@ -63,6 +63,42 @@ describe LogStash::Inputs::Tcp do
     end
   end
 
+  it "should handle PROXY protocol v1 connections" do
+    event_count = 10
+    port = rand(1024..65535)
+    conf = <<-CONFIG
+      input {
+        tcp {
+          port => #{port}
+          proxy_protocol => true
+        }
+      }
+    CONFIG
+
+    events = input(conf) do |pipeline, queue|
+      socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+      socket.puts("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r");
+      socket.flush
+      event_count.times do |i|
+        # unicode smiley for testing unicode support!
+        socket.puts("#{i} ☹")
+        socket.flush
+      end
+      socket.close
+
+      event_count.times.collect {queue.pop}
+    end
+
+    insist { events.length } == event_count
+    event_count.times do |i|
+      insist { events[i].get("message") } == "#{i} ☹"
+      insist { events[i].get("host") } == "1.2.3.4"
+      insist { events[i].get("port") } == "1234"
+      insist { events[i].get("proxy_host") } == "5.6.7.8"
+      insist { events[i].get("proxy_port") } == "5678"
+    end
+  end
+
   it "should read events with plain codec and ISO-8859-1 charset" do
     port = rand(1024..65535)
     charset = "ISO-8859-1"
