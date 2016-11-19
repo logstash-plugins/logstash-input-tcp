@@ -171,7 +171,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         # PROXY proto clientip proxyip clientport proxyport
         if pp_info[0] != "PROXY"
           @logger.error("invalid proxy protocol header label", :hdr => pp_hdr)
-          raise IOError
+          return
         else
           proxy_address = pp_info[3]
           proxy_port = pp_info[5]
