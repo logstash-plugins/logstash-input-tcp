@@ -1,3 +1,6 @@
+## 4.1.0
+  - Add support for proxy protocol
+
 ## 4.0.3
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
 
