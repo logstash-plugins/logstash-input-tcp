@@ -15,21 +15,21 @@ require_relative "../spec_helper"
 #Cabin::Channel.get(LogStash).level = :debug
 describe LogStash::Inputs::Tcp do
 
-  context "codec (PR #1372)" do
-    it "switches from plain to line" do
+  context "codec correction" do
+    it "switches from line to plain" do
       require "logstash/codecs/plain"
       require "logstash/codecs/line"
-      plugin = LogStash::Inputs::Tcp.new("codec" => LogStash::Codecs::Plain.new, "port" => 0)
+      plugin = LogStash::Inputs::Tcp.new("codec" => LogStash::Codecs::Line.new, "port" => 0)
       plugin.register
-      insist { plugin.codec }.is_a?(LogStash::Codecs::Line)
+      insist { plugin.codec }.is_a?(LogStash::Codecs::Plain)
       plugin.close
     end
-    it "switches from json to json_lines" do
+    it "switches from json_lines to json" do
       require "logstash/codecs/json"
       require "logstash/codecs/json_lines"
-      plugin = LogStash::Inputs::Tcp.new("codec" => LogStash::Codecs::JSON.new, "port" => 0)
+      plugin = LogStash::Inputs::Tcp.new("codec" => LogStash::Codecs::JSONLines.new, "port" => 0)
       plugin.register
-      insist { plugin.codec }.is_a?(LogStash::Codecs::JSONLines)
+      insist { plugin.codec }.is_a?(LogStash::Codecs::JSON)
       plugin.close
     end
   end

@@ -1,6 +1,7 @@
   # encoding: utf-8
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
+require "logstash/util/buftok"
 
 require "socket"
 require "openssl"
@@ -14,7 +15,7 @@ require "openssl"
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config_name "tcp"
 
-  default :codec, "line"
+  default :codec, "plain"
 
   # When mode is `server`, the address to listen on.
   # When mode is `client`, the address to connect to.
@@ -57,6 +58,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Useful when the CA chain is not necessary in the system store.
   config :ssl_extra_chain_certs, :validate => :array, :default => []
 
+  # The delimiter for events as bytes are read from the tcp socket.
+  config :delimiter, :validate => :string, :default => "\\n"
+
   HOST_FIELD = "host".freeze
   PORT_FIELD = "port".freeze
   PROXY_HOST_FIELD = "proxy_host".freeze
@@ -65,6 +69,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def initialize(*args)
     super(*args)
+
+    @delimiter = @delimiter.gsub("\\r", "\r").gsub("\\n", "\n")
 
     # monkey patch TCPSocket and SSLSocket to include socket peer
     TCPSocket.module_eval{include ::LogStash::Util::SocketPeer}
@@ -80,7 +86,18 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def register
-    fix_streaming_codecs
+
+    # Delimiters are handled by this input, now, so let's do some backwards
+    # compatibility support by shunting `json_lines` usage to just `json`
+    if @codec.class.config_name == "json_lines"
+      require "logstash/codecs/json"
+      @codec = LogStash::Codecs::JSON.new
+    end
+
+    if @codec.class.config_name == "line"
+      require "logstash/codecs/plain"
+      @codec = LogStash::Codecs::Plain.new
+    end
 
     # note that since we are opening a socket in register, we must also make sure we close it
     # in the close method even if we also close it in the stop method since we could have
@@ -159,6 +176,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def handle_socket(socket, client_address, client_port, output_queue, codec)
     peer = "#{client_address}:#{client_port}"
+    buffer = FileWatch::BufferedTokenizer.new(@delimiter)
     first_read = true
     while !stop?
       tbuf = read(socket)
@@ -179,17 +197,20 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
           client_port = pp_info[4]
         end
       end
-      codec.decode(tbuf) do |event|
-        if @proxy_protocol
-          event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
-          event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
-        end
-        event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
-        event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-        event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
 
-        decorate(event)
-        output_queue << event
+      buffer.extract(tbuf).each do |line|
+        codec.decode(line) do |event|
+          if @proxy_protocol
+            event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
+            event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
+          end
+          event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
+          event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
+          event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
+
+          decorate(event)
+          output_queue << event
+        end
       end
     end
   rescue EOFError
