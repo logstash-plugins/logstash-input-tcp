@@ -1,3 +1,6 @@
+## 4.1.1
+  - Add documentation for how to use tcp input to accept log4j2 data.
+
 ## 4.1.0
   - Add support for proxy protocol
 
