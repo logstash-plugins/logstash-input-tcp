@@ -11,6 +11,48 @@ require "openssl"
 #
 # Can either accept connections from clients or connect to a server,
 # depending on `mode`.
+#
+# #### Accepting log4j2 logs
+#
+# Log4j2 can send JSON over a socket, and we can use that combined with our tcp
+# input to accept the logs. 
+#
+# First, we need to configure your application to send logs in JSON over a
+# socket. The following log4j2.xml accomplishes this task.
+#
+# Note, you will want to change the `host` and `port` settings in this
+# configuration to match your needs.
+#
+#     <Configuration>
+#       <Appenders>
+#          <Socket name="Socket" host="localhost" port="12345">
+#            <JsonLayout compact="true" eventEol="true" />
+#         </Socket>
+#       </Appenders>
+#       <Loggers>
+#         <Root level="info">
+#           <AppenderRef ref="Socket"/>
+#         </Root>
+#       </Loggers>
+#     </Configuration>
+#
+# To accept this in Logstash, you will want tcp input and a date filter:
+#
+#     input {
+#       tcp {
+#         port => 12345
+#         codec => json
+#       }
+#     }
+#
+# and add a date filter to take log4j2's `timeMillis` field and use it as the
+# event timestamp
+#
+#     filter {
+#       date {
+#         match => [ "timeMillis", "UNIX_MS" ]
+#       }
+#     }
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config_name "tcp"
 
