@@ -3,3 +3,8 @@ Gemfile.lock
 .bundle
 vendor
 .idea
+build
+.gradle
+*.iml
+*.iws
+*.ipr
