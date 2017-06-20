@@ -1,3 +1,6 @@
+## 4.2.0
+  - Implemented plain socket server in a non-blocking way improving performance and fixing issues for use cases with a large number of concurrent connections
+
 ## 4.1.1
   - Add documentation for how to use tcp input to accept log4j2 data.
 

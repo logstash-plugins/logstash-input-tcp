@@ -1,9 +1,16 @@
-  # encoding: utf-8
+# encoding: utf-8
+
+require "java"
+
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
+require "logstash-input-tcp_jars"
+require "logstash/inputs/tcp/decoder_impl"
 
 require "socket"
 require "openssl"
+
+java_import org.logstash.tcp.InputLoop
 
 # Read events over a TCP socket.
 #
@@ -128,14 +135,25 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     # in the close method even if we also close it in the stop method since we could have
     # a situation where register is called but not run & stop.
 
-    self.server_socket = new_server_socket if server?
+    if server?
+      if @ssl_enable
+        self.server_socket = new_server_socket
+      else
+        @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self))
+      end
+    end
   end
 
   def run(output_queue)
+    @output_queue = output_queue
     if server?
-      run_server(output_queue)
+      if @ssl_enable
+        run_ssl_server
+      else
+        @loop.run
+      end
     else
-      run_client(output_queue)
+      run_client()
     end
   end
 
@@ -144,6 +162,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     # and any thread using them will exit.
     # catch all rescue nil on close to discard any close errors or invalid socket
     server_socket.close rescue nil
+    @loop.close rescue nil
     client_socket.close rescue nil
     connection_sockets.each{|socket| socket.close rescue nil}
   end
@@ -154,16 +173,27 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     # register called but never run & stop, only close.
     # catch all rescue nil on close to discard any close errors or invalid socket
     server_socket.close rescue nil
+    @loop.close rescue nil
+  end
+
+  def decode_buffer(client_address, client_port, codec, proxy_address, proxy_port, tbuf)
+    codec.decode(tbuf) do |event|
+      if @proxy_protocol
+        event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
+        event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
+      end
+      enqueue_decorated(event, client_address, client_port)
+    end
   end
 
   private
 
-  def run_server(output_queue)
+  def run_ssl_server()
     while !stop?
       begin
         socket = add_connection_socket(server_socket.accept)
         # start a new thread for each connection.
-        server_connection_thread(output_queue, socket)
+        server_connection_thread(socket)
       rescue OpenSSL::SSL::SSLError => e
         # log error, close socket, accept next connection
         @logger.debug? && @logger.debug("SSL Error", :exception => e, :backtrace => e.backtrace)
@@ -178,35 +208,37 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     server_socket.close rescue nil
   end
 
-  def run_client(output_queue)
+  def run_client()
     while !stop?
       self.client_socket = new_client_socket
-      handle_socket(client_socket, client_socket.peeraddr[3], client_socket.peeraddr[1], output_queue, @codec.clone)
+      handle_socket(client_socket)
     end
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     client_socket.close rescue nil
   end
 
-  def server_connection_thread(output_queue, socket)
-    Thread.new(output_queue, socket) do |q, s|
+  def server_connection_thread(socket)
+    Thread.new(socket) do |s|
       begin
         @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
-        handle_socket(s, s.peeraddr[3], s.peeraddr[1], q, @codec.clone)
+        handle_socket(s)
       ensure
         delete_connection_socket(s)
       end
     end
   end
 
-  def handle_socket(socket, client_address, client_port, output_queue, codec)
+  def handle_socket(socket)
+    client_address = socket.peeraddr[3]
+    client_port = socket.peeraddr[1]
     peer = "#{client_address}:#{client_port}"
     first_read = true
+    codec = @codec.clone
     while !stop?
-      tbuf = read(socket)
+      tbuf = socket.sysread(16384)
       if @proxy_protocol && first_read
         first_read = false
-        orig_buf = tbuf
         pp_hdr, tbuf = tbuf.split("\r\n", 2)
 
         pp_info = pp_hdr.split(/\s/)
@@ -221,18 +253,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
           client_port = pp_info[4]
         end
       end
-      codec.decode(tbuf) do |event|
-        if @proxy_protocol
-          event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
-          event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
-        end
-        event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
-        event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-        event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
-
-        decorate(event)
-        output_queue << event
-      end
+      decode_buffer(client_address, client_port, codec, proxy_address, proxy_port, tbuf)
     end
   rescue EOFError
     @logger.debug? && @logger.debug("Connection closed", :client => peer)
@@ -250,36 +271,19 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     socket.close rescue nil
 
     codec.respond_to?(:flush) && codec.flush do |event|
-      event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
-      event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-      event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
-
-      decorate(event)
-      output_queue << event
+      enqueue_decorated(event, client_address, client_port)
     end
   end
 
-  private
-  def client_thread(output_queue, socket)
-    Thread.new(output_queue, socket) do |q, s|
-      begin
-        @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
-        handle_socket(s, s.peeraddr[3], s.peeraddr[1], q, @codec.clone)
-      rescue Interrupted
-        s.close rescue nil
-      ensure
-        @client_threads_lock.synchronize{@client_threads.delete(Thread.current)}
-      end
-    end
+  def enqueue_decorated(event, client_address, client_port)
+    event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
+    event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
+    decorate(event)
+    @output_queue << event
   end
-
-  private
+  
   def server?
     @mode == "server"
-  end
-
-  def read(socket)
-    socket.sysread(16384)
   end
 
   def ssl_context
