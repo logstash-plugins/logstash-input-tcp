@@ -1,10 +1,14 @@
+## 4.2.2
+  - Fixed regression causing incoming connection host ips being accidentally resolved to hostnames
+  - Implemented plain socket server in a non-blocking way improving performance and fixing issues for use cases with a large number of concurrent connections
+  
 ## 4.2.1
-  - Fixed corrupted Gem being released
+  - Version yanked from RubyGems for accidental behaviour change causing unwanted reverse lookups on connections
 
 ## 4.2.0
-  - Implemented plain socket server in a non-blocking way improving performance and fixing issues for use cases with a large number of concurrent connections
+  - Version yanked from RubyGems for packaging issues
 
-## 4.1.1
+## 4.1.2
   - Add documentation for how to use tcp input to accept log4j2 data.
 
 ## 4.1.0

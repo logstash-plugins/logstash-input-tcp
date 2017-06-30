@@ -46,7 +46,7 @@ class DecoderImpl
       end
     else
       filtered = received
-      @address = channel_addr.get_host_name
+      @address = channel_addr.get_address.get_host_address
       @port = channel_addr.get_port
     end
     @first_read = false
