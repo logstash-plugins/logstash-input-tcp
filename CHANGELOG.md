@@ -1,3 +1,6 @@
+## 4.2.1
+  - Fixed corrupted Gem being released
+
 ## 4.2.0
   - Implemented plain socket server in a non-blocking way improving performance and fixing issues for use cases with a large number of concurrent connections
 
