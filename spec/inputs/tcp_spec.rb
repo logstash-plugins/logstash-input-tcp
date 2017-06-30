@@ -45,8 +45,9 @@ describe LogStash::Inputs::Tcp do
       }
     CONFIG
 
+    host = '127.0.0.1'
     events = input(conf) do |pipeline, queue|
-      socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+      socket = Stud::try(5.times) { TCPSocket.new(host, port) }
       event_count.times do |i|
         # unicode smiley for testing unicode support!
         socket.puts("#{i} ☹")
@@ -59,7 +60,9 @@ describe LogStash::Inputs::Tcp do
 
     insist { events.length } == event_count
     event_count.times do |i|
-      insist { events[i].get("message") } == "#{i} ☹"
+      event = events[i]
+      insist { event.get("message") } == "#{i} ☹"
+      insist { event.get("host") } == host
     end
   end
 
