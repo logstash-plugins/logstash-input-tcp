@@ -1,3 +1,7 @@
+## 5.0.0
+  - Changed the behaviour of the `host` field to contain the resolved peer hostname for a connection instead of its peer IP
+  and moved the peer's IP to the new field `ip_address`
+
 ## 4.2.2
   - Fixed regression causing incoming connection host ips being accidentally resolved to hostnames
   - Implemented plain socket server in a non-blocking way improving performance and fixing issues for use cases with a large number of concurrent connections
