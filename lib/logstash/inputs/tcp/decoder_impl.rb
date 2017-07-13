@@ -21,7 +21,7 @@ class DecoderImpl
     if @first_read
       tbuf = init_first_read(channel_addr, tbuf)
     end
-    @tcp.decode_buffer(@address, @port, @codec,
+    @tcp.decode_buffer(@ip_address, @address, @port, @codec,
                        @proxy_address, @proxy_port, tbuf)
   end
 
@@ -46,7 +46,8 @@ class DecoderImpl
       end
     else
       filtered = received
-      @address = channel_addr.get_address.get_host_address
+      @ip_address = channel_addr.get_address.get_host_address
+      @address = channel_addr.get_host_name
       @port = channel_addr.get_port
     end
     @first_read = false

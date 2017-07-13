@@ -45,7 +45,7 @@ describe LogStash::Inputs::Tcp do
       }
     CONFIG
 
-    host = '127.0.0.1'
+    host = 'localhost'
     events = input(conf) do |pipeline, queue|
       socket = Stud::try(5.times) { TCPSocket.new(host, port) }
       event_count.times do |i|
@@ -63,6 +63,7 @@ describe LogStash::Inputs::Tcp do
       event = events[i]
       insist { event.get("message") } == "#{i} ☹"
       insist { event.get("host") } == host
+      insist { event.get("[@metdata][ip_address]") } == '127.0.0.1'
     end
   end
 

@@ -107,6 +107,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config :ssl_extra_chain_certs, :validate => :array, :default => []
 
   HOST_FIELD = "host".freeze
+  HOST_IP_FIELD = "[@metdata][ip_address]".freeze
   PORT_FIELD = "port".freeze
   PROXY_HOST_FIELD = "proxy_host".freeze
   PROXY_PORT_FIELD = "proxy_port".freeze
@@ -176,13 +177,14 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @loop.close rescue nil
   end
 
-  def decode_buffer(client_address, client_port, codec, proxy_address, proxy_port, tbuf)
+  def decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
+                    proxy_port, tbuf)
     codec.decode(tbuf) do |event|
       if @proxy_protocol
         event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
         event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
       end
-      enqueue_decorated(event, client_address, client_port)
+      enqueue_decorated(event, client_ip_address, client_address, client_port)
     end
   end
 
@@ -231,6 +233,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def handle_socket(socket)
     client_address = socket.peeraddr[3]
+    client_ip_address = socket.peeraddr[2]
     client_port = socket.peeraddr[1]
     peer = "#{client_address}:#{client_port}"
     first_read = true
@@ -251,9 +254,11 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
           proxy_port = pp_info[5]
           client_address = pp_info[2]
           client_port = pp_info[4]
+          client_ip_address = ''
         end
       end
-      decode_buffer(client_address, client_port, codec, proxy_address, proxy_port, tbuf)
+      decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
+                    proxy_port, tbuf)
     end
   rescue EOFError
     @logger.debug? && @logger.debug("Connection closed", :client => peer)
@@ -271,12 +276,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     socket.close rescue nil
 
     codec.respond_to?(:flush) && codec.flush do |event|
-      enqueue_decorated(event, client_address, client_port)
+      enqueue_decorated(event, client_ip_address, client_address, client_port)
     end
   end
 
-  def enqueue_decorated(event, client_address, client_port)
+  def enqueue_decorated(event, client_ip_address, client_address, client_port)
     event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
+    event.set(HOST_IP_FIELD, client_ip_address) unless event.get(HOST_IP_FIELD)
     event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
     decorate(event)
     @output_queue << event
