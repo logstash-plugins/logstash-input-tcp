@@ -94,15 +94,6 @@ input plugins.
 
 &nbsp;
 
-[id="plugins-{type}s-{plugin}-data_timeout"]
-===== `data_timeout`  (DEPRECATED)
-
-  * DEPRECATED WARNING: This configuration item is deprecated and may not be available in future versions.
-  * Value type is <<number,number>>
-  * Default value is `-1`
-
-
-
 [id="plugins-{type}s-{plugin}-host"]
 ===== `host` 
 

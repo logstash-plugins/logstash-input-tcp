@@ -73,7 +73,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # When mode is `client`, the port to connect to.
   config :port, :validate => :number, :required => true
 
-  config :data_timeout, :validate => :number, :default => -1, :deprecated => "This setting is not used by this plugin. It will be removed soon."
+  config :data_timeout, :validate => :number, :obsolete => "This setting is not used any more."
 
   # Mode to operate in. `server` listens for client connections,
   # `client` connects to a server.
