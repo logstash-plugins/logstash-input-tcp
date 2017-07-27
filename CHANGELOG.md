@@ -1,3 +1,6 @@
+## 6.0.0
+  - Mark deprecated :data_timeout option as obsolete
+
 ## 5.0.0
   - Changed the behaviour of the `host` field to contain the resolved peer hostname for a connection instead of its peer IP
   and moved the peer's IP to the new field `ip_address`
