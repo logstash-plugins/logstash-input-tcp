@@ -1,5 +1,5 @@
 ## 6.0.0
-  - Mark deprecated :data_timeout option as obsolete
+  - Mark deprecated :data_timeout and :ssl_cacert options as obsolete
 
 ## 5.0.0
   - Changed the behaviour of the `host` field to contain the resolved peer hostname for a connection instead of its peer IP
