@@ -131,15 +131,6 @@ When mode is `client`, the port to connect to.
 Proxy protocol support, only v1 is supported at this time
 http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt
 
-[id="plugins-{type}s-{plugin}-ssl_cacert"]
-===== `ssl_cacert`  (DEPRECATED)
-
-  * DEPRECATED WARNING: This configuration item is deprecated and may not be available in future versions.
-  * Value type is <<path,path>>
-  * There is no default value for this setting.
-
-The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
-
 [id="plugins-{type}s-{plugin}-ssl_cert"]
 ===== `ssl_cert` 
 

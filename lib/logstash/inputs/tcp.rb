@@ -90,8 +90,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # For input, sets the field `sslsubject` to that of the client certificate.
   config :ssl_verify, :validate => :boolean, :default => true
 
-  # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
-  config :ssl_cacert, :validate => :path, :deprecated => "This setting is deprecated in favor of ssl_extra_chain_certs as it sets a more clear expectation to add more X509 certificates to the store"
+  config :ssl_cacert, :validate => :path, :obsolete => "This setting is obsolete. Use ssl_extra_chain_certs instead"
 
   # SSL certificate path
   config :ssl_cert, :validate => :path
@@ -314,11 +313,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def load_cert_store
     cert_store = OpenSSL::X509::Store.new
     cert_store.set_default_paths
-    if File.directory?(@ssl_cacert)
-      cert_store.add_path(@ssl_cacert)
-    else
-      cert_store.add_file(@ssl_cacert)
-    end if @ssl_cacert
     @ssl_extra_chain_certs.each do |cert|
       cert_store.add_file(cert)
     end
