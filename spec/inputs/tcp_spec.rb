@@ -348,6 +348,41 @@ describe LogStash::Inputs::Tcp do
             end
           end
 
+          describe "an error occurs during an accept" do
+            let(:socket) { double("socket").as_null_object }
+
+            before do
+              allow(input).to receive(:server_socket).and_return(socket)
+
+              allow(socket).to receive(:accept) do |a1, a2, a3|
+                raise StandardError, "blah"
+              end
+            end
+
+            it "should log the error on accept" do
+              allow(input.logger).to receive(:error).with(any_args)
+              
+              stop = Thread.new {
+                sleep 2
+                input.do_stop
+              }
+              expect do
+                input.run(Queue.new)
+              end.not_to raise_error
+
+              expect(input.logger).to have_received(:error).with(
+                ::LogStash::Inputs::Tcp::RUN_LOOP_ERROR_MESSAGE,
+                :message => "blah",
+                :class => "StandardError",
+                :backtrace => anything
+              ).at_least(:once)
+
+              stop.join
+              # Wait for stop to actually happen
+              sleep 1
+            end
+          end
+
           context "that sends garbage instead of TLS handshake" do
             let!(:input_task) { Stud::Task.new { input.run(queue) } }
             let(:max_length) { 1000 }

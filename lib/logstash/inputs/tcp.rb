@@ -189,6 +189,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   private
 
+  RUN_LOOP_ERROR_MESSAGE="TCP input server encountered error"
   def run_ssl_server()
     while !stop?
       begin
@@ -199,9 +200,12 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         # log error, close socket, accept next connection
         @logger.debug? && @logger.debug("SSL Error", :exception => e, :backtrace => e.backtrace)
       rescue => e
-        # if this exception occured while the plugin is stopping
-        # just ignore and exit
-        raise e unless stop?
+        @logger.error(
+          RUN_LOOP_ERROR_MESSAGE, 
+          :message => e.message,
+          :class => e.class.name,
+          :backtrace => e.backtrace
+        )
       end
     end
   ensure
