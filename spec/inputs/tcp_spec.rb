@@ -233,7 +233,7 @@ describe LogStash::Inputs::Tcp do
 
   it "should one message per connection" do
     event_count = 10
-    port = rand(1024..65535)
+    port = rand(10000..65535)
     conf = <<-CONFIG
       input {
         tcp {
