@@ -15,6 +15,20 @@ require_relative "../spec_helper"
 #Cabin::Channel.get(LogStash).level = :debug
 describe LogStash::Inputs::Tcp do
 
+  def get_port
+    begin
+      # Start high to better avoid common services
+      port = rand(10000..65535)
+      s = TCPServer.new("127.0.0.1", port)
+      s.close
+      return port
+    rescue Errno::EADDRINUSE
+      retry
+    end
+  end
+
+  let(:port) { get_port }
+
   context "codec (PR #1372)" do
     it "switches from plain to line" do
       require "logstash/codecs/plain"
@@ -36,7 +50,6 @@ describe LogStash::Inputs::Tcp do
 
   it "should read plain with unicode" do
     event_count = 10
-    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -69,12 +82,11 @@ describe LogStash::Inputs::Tcp do
 
   it "should handle PROXY protocol v1 connections" do
     event_count = 10
-    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
-          port => #{port}
           proxy_protocol => true
+          port => '#{port}'
         }
       }
     CONFIG
@@ -104,7 +116,6 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with plain codec and ISO-8859-1 charset" do
-    port = rand(1024..65535)
     charset = "ISO-8859-1"
     conf = <<-CONFIG
       input {
@@ -132,7 +143,6 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json codec" do
-    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -167,7 +177,6 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json codec (testing 'host' handling)" do
-    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -194,7 +203,6 @@ describe LogStash::Inputs::Tcp do
   end
 
   it "should read events with json_lines codec" do
-    port = rand(1024..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -233,7 +241,6 @@ describe LogStash::Inputs::Tcp do
 
   it "should one message per connection" do
     event_count = 10
-    port = rand(10000..65535)
     conf = <<-CONFIG
       input {
         tcp {
@@ -271,7 +278,6 @@ describe LogStash::Inputs::Tcp do
       srand(RSpec.configuration.seed)
     end
 
-    let(:port) { rand(1024..65535) }
     subject { LogStash::Plugin.lookup("input", "tcp").new({ "port" => port }) }
     let!(:helper) { TcpHelpers.new }
 
