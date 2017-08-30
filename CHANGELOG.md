@@ -1,3 +1,6 @@
+## 5.0.2
+  - Fix bug where this input would crash logstash during some socket reads when acting as an SSL server
+
 ## 5.0.1
   - Fix some documentation issues
 
