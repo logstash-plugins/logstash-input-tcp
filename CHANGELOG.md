@@ -1,3 +1,6 @@
+## 4.2.4
+  - Fix bug where this input would crash logstash during some socket reads when acting as an SSL server
+
 ## 4.2.3
   - Documentation changes
 
