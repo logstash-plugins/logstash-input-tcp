@@ -76,7 +76,7 @@ describe LogStash::Inputs::Tcp do
       event = events[i]
       insist { event.get("message") } == "#{i} ☹"
       insist { event.get("host") } == host
-      insist { event.get("[@metdata][ip_address]") } == '127.0.0.1'
+      insist { event.get("[@metadata][ip_address]") } == '127.0.0.1'
     end
   end
 
@@ -367,7 +367,7 @@ describe LogStash::Inputs::Tcp do
 
             it "should log the error on accept" do
               allow(input.logger).to receive(:error).with(any_args)
-              
+
               stop = Thread.new {
                 sleep 2
                 input.do_stop
