@@ -106,7 +106,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config :ssl_extra_chain_certs, :validate => :array, :default => []
 
   HOST_FIELD = "host".freeze
-  HOST_IP_FIELD = "[@metdata][ip_address]".freeze
+  HOST_IP_FIELD = "[@metadata][ip_address]".freeze
   PORT_FIELD = "port".freeze
   PROXY_HOST_FIELD = "proxy_host".freeze
   PROXY_PORT_FIELD = "proxy_port".freeze
