@@ -2,7 +2,7 @@ Gem::Specification.new do |s|
   s.name          = 'logstash-input-tcp'
   s.version       = ::File.read('version').split("\n").first
   s.licenses      = ['Apache License (2.0)']
-  s.summary       = "Read events over a TCP socket."
+  s.summary       = "Reads events from a TCP socket"
   s.description   = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"
   s.authors       = ["Elastic"]
   s.email         = 'info@elastic.co'
