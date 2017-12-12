@@ -135,6 +135,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     # in the close method even if we also close it in the stop method since we could have
     # a situation where register is called but not run & stop.
 
+    @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
     if server?
       if @ssl_enable
         self.server_socket = new_server_socket
@@ -324,7 +325,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def new_server_socket
-    @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}")
     begin
       socket = TCPServer.new(@host, @port)
     rescue Errno::EADDRINUSE
