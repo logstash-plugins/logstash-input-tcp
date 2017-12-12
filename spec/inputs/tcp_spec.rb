@@ -75,7 +75,7 @@ describe LogStash::Inputs::Tcp do
     event_count.times do |i|
       event = events[i]
       insist { event.get("message") } == "#{i} ☹"
-      insist { event.get("host") } == host
+      insist { ["localhost","ip6-localhost"].includes? event.get("host") }
       insist { event.get("[@metadata][ip_address]") } == '127.0.0.1'
     end
   end
