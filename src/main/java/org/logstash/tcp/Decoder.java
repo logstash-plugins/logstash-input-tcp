@@ -19,4 +19,9 @@ public interface Decoder {
      * Creates a copy of this decoder, that has all internal meta data cleared.
      */
     Decoder copy();
+
+    /**
+     * Flushes any data held in this decoder.
+     */
+    void flush();
 }

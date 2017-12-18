@@ -188,6 +188,12 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     end
   end
 
+  def flush_codec(codec, client_ip_address, client_address, client_port)
+    codec.flush do |event|
+      enqueue_decorated(event, client_ip_address, client_address, client_port)
+    end
+  end
+
   private
 
   RUN_LOOP_ERROR_MESSAGE="TCP input server encountered error"
@@ -278,10 +284,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
-
-    codec.respond_to?(:flush) && codec.flush do |event|
-      enqueue_decorated(event, client_ip_address, client_address, client_port)
-    end
+    flush_codec(codec, client_ip_address, client_address, client_port)
   end
 
   def enqueue_decorated(event, client_ip_address, client_address, client_port)

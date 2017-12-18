@@ -25,8 +25,12 @@ class DecoderImpl
                        @proxy_address, @proxy_port, tbuf)
   end
 
-  def copy()
+  def copy
     DecoderImpl.new(@codec.clone, @tcp)
+  end
+
+  def flush
+    @tcp.flush_codec(@codec, @ip_address, @address, @port)
   end
 
   private
