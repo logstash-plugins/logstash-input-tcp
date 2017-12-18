@@ -11,6 +11,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
+
 import java.io.Closeable;
 
 /**
@@ -88,7 +91,31 @@ public final class InputLoop implements Runnable, Closeable {
 
         @Override
         protected void initChannel(final SocketChannel channel) throws Exception {
-            channel.pipeline().addLast(new InputLoop.InputHandler.DecoderAdapter(decoder.copy()));
+            Decoder localCopy = decoder.copy();
+            channel.pipeline().addLast(new InputLoop.InputHandler.DecoderAdapter(localCopy));
+            channel.closeFuture().addListener(new FlushOnCloseListener(localCopy));
+        }
+
+        /**
+         * Listeners that flushes the the JRuby supplied {@link Decoder} when the socket is closed.
+         */
+        private static final class FlushOnCloseListener implements GenericFutureListener<Future<Void>> {
+
+            /**
+             * {@link Decoder} supplied by JRuby.
+             */
+            private final Decoder decoder;
+
+            /**
+             * Ctor.
+             * @param decoder {@link Decoder} provided by JRuby.
+             */
+            FlushOnCloseListener(Decoder decoder) { this.decoder = decoder; }
+
+            @Override
+            public void operationComplete(Future future) throws Exception {
+                decoder.flush();
+            }
         }
 
         /**

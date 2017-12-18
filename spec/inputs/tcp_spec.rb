@@ -269,6 +269,41 @@ describe LogStash::Inputs::Tcp do
     end
   end
 
+  it "should flush codec after client disconnects" do
+    # verifies fix for https://github.com/logstash-plugins/logstash-input-tcp/issues/90
+    conf = <<-CONFIG
+      input {
+        tcp {
+          port => #{port}
+          codec => multiline {
+              pattern => "^\s"
+              what => "previous"
+          }
+        }
+      }
+    CONFIG
+
+    data = "a\n 1\n 2\nb\n 1"
+    event_count = 2
+
+    events = input(conf) do |pipeline, queue|
+      socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+      socket.puts(data)
+      socket.close
+
+      # If the codec is not properly flushed, there will be only one event and the second call to queue.pop
+      # will block indefinitely. Wrapping this with a timeout ensures that failure mode does not hang the
+      # test.
+      Timeout.timeout(5) do
+        event_count.times.collect do
+          queue.pop
+        end
+      end
+    end
+
+    expect(events.length).to equal(event_count)
+  end
+
   # below are new specs added in the context of the shutdown semantic refactor.
   # TODO:
   #   - refactor all specs using this new model
