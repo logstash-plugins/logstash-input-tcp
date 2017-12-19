@@ -72,6 +72,7 @@ describe LogStash::Inputs::Tcp do
     end
 
     insist { events.length } == event_count
+    events = events.sort_by {|e| e.get("message")} # the ordering of events in the queue is highly timing-dependent
     event_count.times do |i|
       event = events[i]
       insist { event.get("message") } == "#{i} ☹"
@@ -106,6 +107,7 @@ describe LogStash::Inputs::Tcp do
     end
 
     insist { events.length } == event_count
+    events = events.sort_by {|e| e.get("message")} # the ordering of events in the queue is highly timing-dependent
     event_count.times do |i|
       insist { events[i].get("message") } == "#{i} ☹"
       insist { events[i].get("host") } == "1.2.3.4"
@@ -231,6 +233,7 @@ describe LogStash::Inputs::Tcp do
       (1..event_count).map{queue.pop}
     end
 
+    events = events.sort_by {|e| e.get("idx")} # the ordering of events in the queue is highly timing-dependent
     events.each_with_index do |event, idx|
       insist { event.get("hello") } == data["hello"]
       insist { event.get("foo").to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
