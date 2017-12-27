@@ -1,4 +1,7 @@
 ## 5.0.3
+  - Fix bug where codec was not flushed when client disconnected
+  - Restore INFO logging statement on startup
+  - Fixed typo in @metadata tag
   - Update gemspec summary
 
 ## 5.0.2
