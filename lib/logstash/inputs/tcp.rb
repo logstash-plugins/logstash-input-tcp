@@ -11,6 +11,7 @@ require "socket"
 require "openssl"
 
 java_import org.logstash.tcp.InputLoop
+java_import org.logstash.tcp.SslOptions
 
 # Read events over a TCP socket.
 #
@@ -140,22 +141,24 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
     if server?
-      if @ssl_enable
-        self.server_socket = new_server_socket
-      else
-        @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive)
-      end
+      ssl_options = SslOptions.builder
+        .set_is_ssl_enabled(@ssl_enable)
+        .set_should_verify(@ssl_verify)
+        .set_ssl_cert(@ssl_cert)
+        .set_ssl_key(@ssl_key)
+        .set_ssl_key_passphrase(@ssl_key_passphrase.value)
+        .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
+        .build
+
+      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
+                            ssl_options, @logger.to_java(org.apache.logging.log4j.Logger))
     end
   end
 
   def run(output_queue)
     @output_queue = output_queue
     if server?
-      if @ssl_enable
-        run_ssl_server
-      else
-        @loop.run
-      end
+      @loop.run
     else
       run_client()
     end
@@ -199,30 +202,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   private
 
-  RUN_LOOP_ERROR_MESSAGE="TCP input server encountered error"
-  def run_ssl_server()
-    while !stop?
-      begin
-        socket = add_connection_socket(server_socket.accept)
-        # start a new thread for each connection.
-        server_connection_thread(socket)
-      rescue OpenSSL::SSL::SSLError => e
-        # log error, close socket, accept next connection
-        @logger.debug? && @logger.debug("SSL Error", :exception => e, :backtrace => e.backtrace)
-      rescue => e
-        @logger.error(
-          RUN_LOOP_ERROR_MESSAGE, 
-          :message => e.message,
-          :class => e.class.name,
-          :backtrace => e.backtrace
-        )
-      end
-    end
-  ensure
-    # catch all rescue nil on close to discard any close errors or invalid socket
-    server_socket.close rescue nil
-  end
-
   def run_client()
     while !stop?
       self.client_socket = new_client_socket
@@ -231,17 +210,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     client_socket.close rescue nil
-  end
-
-  def server_connection_thread(socket)
-    Thread.new(socket) do |s|
-      begin
-        @logger.debug? && @logger.debug("Accepted connection", :client => s.peer, :server => "#{@host}:#{@port}")
-        handle_socket(s)
-      ensure
-        delete_connection_socket(s)
-      end
-    end
   end
 
   def handle_socket(socket)
@@ -329,22 +297,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       cert_store.add_file(cert)
     end
     cert_store
-  end
-
-  def new_server_socket
-    begin
-      socket = TCPServer.new(@host, @port)
-      socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, @tcp_keep_alive)
-    rescue Errno::EADDRINUSE
-      @logger.error("Could not start TCP server: Address in use", :host => @host, :port => @port)
-      raise
-    end
-
-    if @ssl_enable
-      socket = OpenSSL::SSL::SSLServer.new(socket, ssl_context)
-      socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, @tcp_keep_alive)
-    end
-    socket
   end
 
   def new_client_socket
