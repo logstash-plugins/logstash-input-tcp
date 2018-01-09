@@ -11,8 +11,10 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 
@@ -37,18 +39,44 @@ public final class InputLoop implements Runnable, Closeable {
     private final ChannelFuture future;
 
     /**
+     * Reference to the logger.
+     */
+    private final Logger logger;
+
+    /**
+     * SSL configuration.
+     */
+    private final SslContext sslContext;
+
+    /**
      * Ctor.
      * @param host Host to bind the listen to
      * @param port Port to listen on
      * @param decoder {@link Decoder} provided by Jruby
      */
-    public InputLoop(final String host, final int port, final Decoder decoder) {
+    public InputLoop(final String host, final int port, final Decoder decoder,
+                     final SslOptions sslOptions, final Logger logger) {
+
+        // construct the SslContext now in order to validate the SSL options at startup rather
+        // than client connection time
+        if (sslOptions != null && sslOptions.isSslEnabled()) {
+            try {
+                sslContext = sslOptions.toSslContext();
+            } catch (Exception e) {
+                throw new RuntimeException("Error validating SSL configuration: " +
+                        e.getMessage(), e);
+            }
+        } else {
+            sslContext = null;
+        }
+
+        this.logger = logger;
         worker = new NioEventLoopGroup();
         boss = new NioEventLoopGroup(1);
         future = new ServerBootstrap().group(boss, worker)
             .channel(NioServerSocketChannel.class)
             .option(ChannelOption.SO_BACKLOG, 1024)
-            .childHandler(new InputLoop.InputHandler(decoder)).bind(host, port);
+            .childHandler(new InputLoop.InputHandler(decoder, sslContext, logger)).bind(host, port);
     }
 
     @Override
@@ -82,18 +110,42 @@ public final class InputLoop implements Runnable, Closeable {
         private final Decoder decoder;
 
         /**
+         * SSL configuration options.
+         */
+        private final SslContext sslContext;
+
+        /**
+         * Reference to the logger.
+         */
+        private final Logger logger;
+
+        /**
          * Ctor.
          * @param decoder {@link Decoder} provided by JRuby.
          */
-        InputHandler(final Decoder decoder) {
+        InputHandler(final Decoder decoder, final SslContext sslContext, Logger logger) {
             this.decoder = decoder;
+            this.sslContext = sslContext;
+            this.logger = logger;
         }
 
         @Override
         protected void initChannel(final SocketChannel channel) throws Exception {
             Decoder localCopy = decoder.copy();
-            channel.pipeline().addLast(new InputLoop.InputHandler.DecoderAdapter(localCopy));
+
+            // if SSL is enabled, the SSL handler must be added to the pipeline first
+            if (sslContext != null) {
+                channel.pipeline().addLast(sslContext.newHandler(channel.alloc()));
+            }
+
+            channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
             channel.closeFuture().addListener(new FlushOnCloseListener(localCopy));
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            logger.error("Error in Netty input handler: " + cause);
+            super.exceptionCaught(ctx, cause);
         }
 
         /**
@@ -129,10 +181,16 @@ public final class InputLoop implements Runnable, Closeable {
             private final Decoder decoder;
 
             /**
+             * Reference to the logger.
+             */
+            private final Logger logger;
+
+            /**
              * Ctor.
              * @param decoder {@link Decoder} provided by JRuby.
              */
-            DecoderAdapter(final Decoder decoder) {
+            DecoderAdapter(final Decoder decoder, Logger logger) {
+                this.logger = logger;
                 this.decoder = decoder;
             }
 
@@ -142,8 +200,8 @@ public final class InputLoop implements Runnable, Closeable {
             }
 
             @Override
-            public void exceptionCaught(final ChannelHandlerContext ctx,
-                final Throwable cause) {
+            public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
+                logger.error("Error in Netty pipeline: " + cause);
                 ctx.close();
             }
         }
