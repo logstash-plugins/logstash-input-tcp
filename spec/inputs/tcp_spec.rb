@@ -111,7 +111,7 @@ describe LogStash::Inputs::Tcp do
     event_count.times do |i|
       insist { events[i].get("message") } == "#{i} ☹"
       insist { events[i].get("host") } == "1.2.3.4"
-      insist { events[i].get("port") } == "1234"
+      insist { events[i].get("[@metadata][port]") } == "1234"
       insist { events[i].get("proxy_host") } == "5.6.7.8"
       insist { events[i].get("proxy_port") } == "5678"
     end

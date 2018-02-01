@@ -107,7 +107,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   HOST_FIELD = "host".freeze
   HOST_IP_FIELD = "[@metadata][ip_address]".freeze
-  PORT_FIELD = "port".freeze
+  PORT_FIELD = "[@metadata][port]".freeze
   PROXY_HOST_FIELD = "proxy_host".freeze
   PROXY_PORT_FIELD = "proxy_port".freeze
   SSLSUBJECT_FIELD = "sslsubject".freeze
