@@ -1,3 +1,6 @@
+## 5.0.4
+  - Update Netty/tc-native versions to match those in beats input #113
+
 ## 5.0.3
   - Fix bug where codec was not flushed when client disconnected
   - Restore INFO logging statement on startup
