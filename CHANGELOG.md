@@ -1,3 +1,6 @@
+## 5.0.5
+  - Restore SSLSUBJECT field when ssl_verify is enabled. #115
+
 ## 5.0.4
   - Update Netty/tc-native versions to match those in beats input #113
 

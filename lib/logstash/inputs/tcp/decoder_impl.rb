@@ -22,7 +22,7 @@ class DecoderImpl
       tbuf = init_first_read(channel_addr, tbuf)
     end
     @tcp.decode_buffer(@ip_address, @address, @port, @codec,
-                       @proxy_address, @proxy_port, tbuf)
+                       @proxy_address, @proxy_port, tbuf, nil)
   end
 
   def copy
@@ -30,7 +30,7 @@ class DecoderImpl
   end
 
   def flush
-    @tcp.flush_codec(@codec, @ip_address, @address, @port)
+    @tcp.flush_codec(@codec, @ip_address, @address, @port, nil)
   end
 
   private
