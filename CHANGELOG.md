@@ -1,3 +1,6 @@
+## 5.0.6
+  - Docs: Set the default_codec doc attribute.
+
 ## 5.0.5
   - Restore SSLSUBJECT field when ssl_verify is enabled. #115
 

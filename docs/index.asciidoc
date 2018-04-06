@@ -1,5 +1,6 @@
 :plugin: tcp
 :type: input
+:default_codec: line
 
 ///////////////////////////////////////////
 START - GENERATED VARIABLES, DO NOT EDIT!
@@ -185,3 +186,5 @@ For input, sets the field `sslsubject` to that of the client certificate.
 
 [id="plugins-{type}s-{plugin}-common-options"]
 include::{include_path}/{type}.asciidoc[]
+
+:default_codec!:
