@@ -1,3 +1,6 @@
+## 5.0.7
+  - Fix broken 5.0.6 release
+
 ## 5.0.6
   - Docs: Set the default_codec doc attribute.
 
