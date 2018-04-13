@@ -105,6 +105,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Useful when the CA chain is not necessary in the system store.
   config :ssl_extra_chain_certs, :validate => :array, :default => []
 
+  # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
+  config :tcp_keep_alive, :validate => :boolean, :default => false
+
   HOST_FIELD = "host".freeze
   HOST_IP_FIELD = "[@metadata][ip_address]".freeze
   PORT_FIELD = "port".freeze
@@ -140,7 +143,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       if @ssl_enable
         self.server_socket = new_server_socket
       else
-        @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self))
+        @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive)
       end
     end
   end
@@ -341,6 +344,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def new_client_socket
     socket = TCPSocket.new(@host, @port)
+    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true) if @tcp_keep_alive
 
     if @ssl_enable
       socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)

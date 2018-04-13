@@ -1,3 +1,6 @@
+## 5.0.9
+  - New configuration option to set TCP keep-alive [#16](https://github.com/logstash-plugins/logstash-input-tcp/pull/116)
+  
 ## 5.0.8
   - Reorder shut down of the two event loops to prevent RejectedExecutionException
 
