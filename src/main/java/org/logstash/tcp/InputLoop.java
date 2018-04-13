@@ -41,13 +41,15 @@ public final class InputLoop implements Runnable, Closeable {
      * @param host Host to bind the listen to
      * @param port Port to listen on
      * @param decoder {@link Decoder} provided by Jruby
+     * @param keepAlive set to true to instruct the socket to issue TCP keep alive
      */
-    public InputLoop(final String host, final int port, final Decoder decoder) {
+    public InputLoop(final String host, final int port, final Decoder decoder, final boolean keepAlive) {
         worker = new NioEventLoopGroup();
         boss = new NioEventLoopGroup(1);
         future = new ServerBootstrap().group(boss, worker)
             .channel(NioServerSocketChannel.class)
             .option(ChannelOption.SO_BACKLOG, 1024)
+            .childOption(ChannelOption.SO_KEEPALIVE, keepAlive)
             .childHandler(new InputLoop.InputHandler(decoder)).bind(host, port);
     }
 

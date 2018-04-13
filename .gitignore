@@ -8,3 +8,6 @@ build
 *.iml
 *.iws
 *.ipr
+out
+.rakeTasks
+
