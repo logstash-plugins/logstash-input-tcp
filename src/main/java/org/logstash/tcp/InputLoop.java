@@ -63,8 +63,11 @@ public final class InputLoop implements Runnable, Closeable {
     @Override
     public void close() {
         try {
-            worker.shutdownGracefully().sync();
+            // Shut down boss first otherwise new connections
+            // will be passed to a closed worker loop, triggering:
+            // RejectedExecutionException: event executor terminated
             boss.shutdownGracefully().sync();
+            worker.shutdownGracefully().sync();
         } catch (final InterruptedException ex) {
             throw new IllegalStateException(ex);
         }
