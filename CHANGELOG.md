@@ -1,3 +1,6 @@
+## 5.0.8
+  - Reorder shut down of the two event loops to prevent RejectedExecutionException
+
 ## 5.0.7
   - Fix broken 5.0.6 release
 
