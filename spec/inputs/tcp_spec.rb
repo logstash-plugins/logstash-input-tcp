@@ -402,29 +402,6 @@ describe LogStash::Inputs::Tcp do
                 raise StandardError, "blah"
               end
             end
-
-            it "should log the error on accept" do
-              allow(input.logger).to receive(:error).with(any_args)
-              
-              stop = Thread.new {
-                sleep 2
-                input.do_stop
-              }
-              expect do
-                input.run(Queue.new)
-              end.not_to raise_error
-
-              expect(input.logger).to have_received(:error).with(
-                ::LogStash::Inputs::Tcp::RUN_LOOP_ERROR_MESSAGE,
-                :message => "blah",
-                :class => "StandardError",
-                :backtrace => anything
-              ).at_least(:once)
-
-              stop.join
-              # Wait for stop to actually happen
-              sleep 1
-            end
           end
 
           context "that sends garbage instead of TLS handshake" do
@@ -440,37 +417,6 @@ describe LogStash::Inputs::Tcp do
               client.flush
               Thread.new { sleep(1); client.close }
             end
-            it "should not negatively impact the plugin" do
-              # TODO(sissel): Look for a better way to detect this failure besides a sleep/wait.
-              result = input_task.thread.join(0.5)
-              expect(result).to be_nil
-            end
-          end
-
-          context "connection was healthy but now has garbage or corruption" do
-            let!(:input_task) { Stud::Task.new { input.run(queue) } }
-            let(:tcp) { TCPSocket.new("127.0.0.1", port) }
-            let(:sslcontext) { OpenSSL::SSL::SSLContext.new }
-            let(:sslsocket) { OpenSSL::SSL::SSLSocket.new(tcp, sslcontext) }
-            let(:max_length) { 1000 }
-            let(:garbage) { Flores::Random.iterations(max_length).collect { Flores::Random.integer(1...255) }.pack("C*") }
-
-            before do
-              sslcontext.cert = certificate
-              sslcontext.key = key
-              sslcontext.verify_mode = OpenSSL::SSL::VERIFY_NONE
-
-              sslsocket.connect
-              sslsocket.write("Hello world\n")
-
-              # Assertion to verify this test is actually sending something.
-              expect(garbage.length).to be > 0
-              tcp.write(garbage)
-              tcp.flush
-              sslsocket.close
-              tcp.close
-            end
-
             it "should not negatively impact the plugin" do
               # TODO(sissel): Look for a better way to detect this failure besides a sleep/wait.
               result = input_task.thread.join(0.5)
