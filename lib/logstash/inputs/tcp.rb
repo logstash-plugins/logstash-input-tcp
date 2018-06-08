@@ -334,20 +334,26 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def new_server_socket
     begin
       socket = TCPServer.new(@host, @port)
+      socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, @tcp_keep_alive)
     rescue Errno::EADDRINUSE
       @logger.error("Could not start TCP server: Address in use", :host => @host, :port => @port)
       raise
     end
 
-    @ssl_enable ? OpenSSL::SSL::SSLServer.new(socket, ssl_context) : socket
+    if @ssl_enable
+      socket = OpenSSL::SSL::SSLServer.new(socket, ssl_context)
+      socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, @tcp_keep_alive)
+    end
+    socket
   end
 
   def new_client_socket
     socket = TCPSocket.new(@host, @port)
-    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true) if @tcp_keep_alive
+    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, @tcp_keep_alive)
 
     if @ssl_enable
       socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+      socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, @tcp_keep_alive)
       socket.connect
     end
 
