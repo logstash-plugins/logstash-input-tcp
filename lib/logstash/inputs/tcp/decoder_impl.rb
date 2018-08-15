@@ -51,10 +51,17 @@ class DecoderImpl
     else
       filtered = received
       @ip_address = channel_addr.get_address.get_host_address
-      @address = channel_addr.get_host_name
+      @address = extract_host_name(channel_addr)
       @port = channel_addr.get_port
     end
     @first_read = false
     filtered
+  end
+
+  private
+  def extract_host_name(channel_addr)
+    return channel_addr.get_host_string unless @tcp.dns_reverse_lookup_enabled?
+
+    channel_addr.get_host_name
   end
 end
