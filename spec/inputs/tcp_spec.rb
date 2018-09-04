@@ -312,13 +312,14 @@ describe LogStash::Inputs::Tcp do
   #   - pipelineless_input has been basically copied from the udp input specs, it should be DRYied up
   #   - see if we should miminc the udp input UDPClient helper class instead of directly using TCPSocket
 
-  describe "LogStash::Inputs::Tcp new specs style" do
+  context "LogStash::Inputs::Tcp new specs style" do
 
     before do
       srand(RSpec.configuration.seed)
     end
 
-    subject { LogStash::Plugin.lookup("input", "tcp").new({ "port" => port }) }
+    let(:config) { { "port" => port } }
+    subject { described_class.new(config) }
     let!(:helper) { TcpHelpers.new }
 
     after :each do
@@ -331,13 +332,7 @@ describe LogStash::Inputs::Tcp do
         expect { subject.register }.to_not raise_error
       end
 
-      after(:each) do
-        subject.close
-      end
-
       context "when using ssl" do
-        subject { described_class.new(config) }
-
         let(:config) do
           {
             "host" => "127.0.0.1",
@@ -396,11 +391,9 @@ describe LogStash::Inputs::Tcp do
       end
 
       context "when ssl_enable is true" do
-        let(:pki) { Flores::PKI.generate }
-        let(:certificate) { pki[0] }
-        let(:key) { pki[1] }
-        let(:certificate_file) { Stud::Temporary.file }
-        let(:key_file) { Stud::Temporary.file }
+        let(:ssc) { SelfSignedCertificate.new }
+        let(:certificate_file) { ssc.certificate }
+        let(:key_file) { ssc.private_key}
         let(:queue) { Queue.new }
 
         let(:config) do
@@ -410,34 +403,16 @@ describe LogStash::Inputs::Tcp do
             "ssl_enable" => true,
             "ssl_cert" => certificate_file.path,
             "ssl_key" => key_file.path,
-
-            # Trust our self-signed cert.
-            # TODO(sissel): Make this a separate certificate for the client
             "ssl_extra_chain_certs" => certificate_file.path
           }
         end
 
-        subject(:input) { LogStash::Plugin.lookup("input", "tcp").new(config) }
-
-        before do
-          certificate_file.write(certificate)
-          key_file.write(key)
-
-          # Close to flush the file writes.
-          certificate_file.close
-          key_file.close
-          subject.register
-        end
-
-        after do
-          File.unlink(certificate_file.path)
-          File.unlink(key_file.path)
-        end
+        let(:input) { subject }
+        before(:each) { input.register }
+        after(:each) { ssc.delete }
 
         context "with a poorly-behaving client" do
           let!(:input_task) { Stud::Task.new { input.run(queue) } }
-
-          after { input.close }
 
           context "that disconnects before doing TLS handshake" do
             before do
