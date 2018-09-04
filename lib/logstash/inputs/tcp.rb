@@ -6,6 +6,7 @@ require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
 require "logstash/inputs/tcp/decoder_impl"
+require "logstash/inputs/tcp/compat_ssl_options"
 
 require "socket"
 require "openssl"
@@ -141,17 +142,15 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
     if server?
-      ssl_options = SslOptions.builder
-        .set_is_ssl_enabled(@ssl_enable)
-        .set_should_verify(@ssl_verify)
-        .set_ssl_cert(@ssl_cert)
-        .set_ssl_key(@ssl_key)
-        .set_ssl_key_passphrase(@ssl_key_passphrase.value)
-        .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
-        .build
+      begin
+        ssl_context = get_ssl_context(SslOptions)
+      rescue => e
+        @logger.warn("Failed to create SslContext from certificate/key pair. Attempting PKCS#1 to PKCS#8 conversion..", :exception => e.class, :message => e.message)
+        ssl_context = get_ssl_context(CompatSslOptions)
+      end
 
       @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
-                            ssl_options, @logger.to_java(org.apache.logging.log4j.Logger))
+                            ssl_context, @logger.to_java(org.apache.logging.log4j.Logger))
     end
   end
 
@@ -353,5 +352,16 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def connection_sockets
     @socket_mutex.synchronize{@connection_sockets.keys.dup}
+  end
+
+  def get_ssl_context(options_class)
+    ssl_context = options_class.builder
+      .set_is_ssl_enabled(@ssl_enable)
+      .set_should_verify(@ssl_verify)
+      .set_ssl_cert(@ssl_cert)
+      .set_ssl_key(@ssl_key)
+      .set_ssl_key_passphrase(@ssl_key_passphrase.value)
+      .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
+      .build.toSslContext()
   end
 end

@@ -56,22 +56,10 @@ public final class InputLoop implements Runnable, Closeable {
      * @param keepAlive set to true to instruct the socket to issue TCP keep alive
      */
     public InputLoop(final String host, final int port, final Decoder decoder, final boolean keepAlive,
-                     final SslOptions sslOptions, final Logger logger) {
-
-        // construct the SslContext now in order to validate the SSL options at startup rather
-        // than client connection time
-        if (sslOptions != null && sslOptions.isSslEnabled()) {
-            try {
-                sslContext = sslOptions.toSslContext();
-            } catch (Exception e) {
-                throw new RuntimeException("Error validating SSL configuration: " +
-                        e.getMessage(), e);
-            }
-        } else {
-            sslContext = null;
-        }
+                     final SslContext sslContext, final Logger logger) {
 
         this.logger = logger;
+        this.sslContext = sslContext;
         worker = new NioEventLoopGroup();
         boss = new NioEventLoopGroup(1);
         future = new ServerBootstrap().group(boss, worker)
