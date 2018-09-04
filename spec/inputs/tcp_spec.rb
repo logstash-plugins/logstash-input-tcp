@@ -9,6 +9,8 @@ require "stud/task"
 require "flores/pki"
 require "openssl"
 
+java_import "io.netty.handler.ssl.util.SelfSignedCertificate"
+
 require_relative "../spec_helper"
 
 #Cabin::Channel.get(LogStash).subscribe(STDOUT)
@@ -324,8 +326,67 @@ describe LogStash::Inputs::Tcp do
     end
 
     describe "#register" do
+
       it "should register without errors" do
         expect { subject.register }.to_not raise_error
+      end
+
+      after(:each) do
+        subject.close
+      end
+
+      context "when using ssl" do
+        subject { described_class.new(config) }
+
+        let(:config) do
+          {
+            "host" => "127.0.0.1",
+            "port" => port,
+            "ssl_enable" => true,
+            "ssl_cert" => certificate_file.path,
+            "ssl_key" => key_file.path,
+            "ssl_extra_chain_certs" => certificate_file.path
+          }
+        end
+
+        context "with pkcs#1 keys" do
+          let(:pki) { Flores::PKI.generate }
+          let(:certificate) { pki[0] }
+          let(:key) { pki[1] }
+          let(:certificate_file) { Stud::Temporary.file }
+          let(:key_file) { Stud::Temporary.file }
+
+          before do
+            certificate_file.write(certificate)
+            key_file.write(key)
+            certificate_file.close
+            key_file.close
+          end
+
+          it "should configure ssl manager correctly without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+          after do
+            File.unlink(certificate_file.path)
+            File.unlink(key_file.path)
+          end
+
+        end
+
+        context "with pkcs#8 keys" do
+          let(:ssc) { SelfSignedCertificate.new }
+          let(:certificate_file) { ssc.certificate }
+          let(:key_file) { ssc.private_key}
+
+          it "should configure ssl manager correctly without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+          after do
+            ssc.delete
+          end
+        end
       end
     end
 
