@@ -1,3 +1,6 @@
+## 5.1.0
+ - Added new configuration option `dns_reverse_lookup_enabled` to allow users to disable costly DNS reverse lookups [#100](https://github.com/logstash-plugins/logstash-input-tcp/issues/100)
+
 ## 5.0.9
   - New configuration option to set TCP keep-alive [#16](https://github.com/logstash-plugins/logstash-input-tcp/pull/116)
   
