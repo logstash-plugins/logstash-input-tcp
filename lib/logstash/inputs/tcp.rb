@@ -108,6 +108,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
   config :tcp_keep_alive, :validate => :boolean, :default => false
 
+  # Option to allow users to avoid DNS Reverse Lookup.
+  config :dns_reverse_lookup_enabled, :validate => :boolean, :default => true
+
   HOST_FIELD = "host".freeze
   HOST_IP_FIELD = "[@metadata][ip_address]".freeze
   PORT_FIELD = "port".freeze
@@ -195,6 +198,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     codec.flush do |event|
       enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
     end
+  end
+
+  def dns_reverse_lookup_enabled?
+    @dns_reverse_lookup_enabled
   end
 
   private
