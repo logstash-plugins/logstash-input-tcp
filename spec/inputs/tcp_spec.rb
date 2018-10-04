@@ -416,6 +416,7 @@ describe LogStash::Inputs::Tcp do
 
           context "that disconnects before doing TLS handshake" do
             before do
+              sleep 1
               client = TCPSocket.new("127.0.0.1", port)
               client.close
             end
