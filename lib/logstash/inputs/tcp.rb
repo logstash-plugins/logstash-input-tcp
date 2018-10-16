@@ -12,7 +12,6 @@ require "socket"
 require "openssl"
 
 java_import org.logstash.tcp.InputLoop
-java_import org.logstash.tcp.SslOptions
 
 # Read events over a TCP socket.
 #
@@ -145,12 +144,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
     if server?
-      begin
-        ssl_context = get_ssl_context(SslOptions)
-      rescue => e
-        @logger.warn("Failed to create SslContext from certificate/key pair. Attempting PKCS#1 to PKCS#8 conversion..", :exception => e.class, :message => e.message)
-        ssl_context = get_ssl_context(CompatSslOptions)
-      end
+      ssl_context = get_ssl_context(SslOptions)
 
       @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
                             ssl_context, @logger.to_java(org.apache.logging.log4j.Logger))
