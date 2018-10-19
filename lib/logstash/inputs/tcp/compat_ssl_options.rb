@@ -20,6 +20,7 @@ java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
 #       .set_ssl_key(@ssl_key)
 #       .set_ssl_key_passphrase(@ssl_key_passphrase.value)
 #       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
+#       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
 #       .build.toSslContext()
 class SslOptions
   def self.builder
@@ -56,6 +57,11 @@ class SslOptions
     self
   end
 
+  def set_ssl_certificate_authorities(certs)
+    @ssl_certificate_authorities = certs
+    self
+  end
+
   def build; self; end
 
   def toSslContext
@@ -82,6 +88,14 @@ class SslOptions
       cert_chain << cf.generateCertificate(FileInputStream.new(cert))
     end
     sslContextBuilder = SslContextBuilder.forServer(private_key, @ssl_key_passphrase, cert_chain.to_java(java.security.cert.X509Certificate))
+
+    trust_certs = @ssl_certificate_authorities.map do |cert|
+      cf.generateCertificate(FileInputStream.new(cert))
+    end
+
+    if trust_certs.any?
+      sslContextBuilder.trustManager(trust_certs.to_java(java.security.cert.X509Certificate))
+    end
 
     sslContextBuilder.clientAuth(@ssl_verify ? ClientAuth::REQUIRE : ClientAuth::NONE)
     sslContextBuilder.build()
