@@ -308,8 +308,12 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     begin
       @ssl_context = OpenSSL::SSL::SSLContext.new
-      @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase.value)
+      @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
+      if @ssl_extra_chain_certs.any?
+        @ssl_context.extra_chain_cert = @ssl_extra_chain_certs.map {|cert_path| OpenSSL::X509::Certificate.new(File.read(cert_path)) }
+        @ssl_context.extra_chain_cert.unshift(OpenSSL::X509::Certificate.new(File.read(@ssl_cert)))
+      end
       if @ssl_verify
         @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
@@ -325,9 +329,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def load_cert_store
     cert_store = OpenSSL::X509::Store.new
     cert_store.set_default_paths
-    @ssl_extra_chain_certs.each do |cert|
-      cert_store.add_file(cert)
-    end
     cert_store
   end
 
