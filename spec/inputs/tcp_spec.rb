@@ -335,11 +335,9 @@ describe LogStash::Inputs::Tcp do
       end
 
       context "when ssl_enable is true" do
-        let(:pki) { Flores::PKI.generate }
-        let(:certificate) { pki[0] }
-        let(:key) { pki[1] }
-        let(:certificate_file) { Stud::Temporary.file }
-        let(:key_file) { Stud::Temporary.file }
+        let(:self_signed_cert) { helper.certificate }
+        let(:certificate) { self_signed_cert.first }
+        let(:key) { self_signed_cert.last }
         let(:queue) { Queue.new }
 
         let(:config) do
@@ -347,30 +345,59 @@ describe LogStash::Inputs::Tcp do
             "host" => "127.0.0.1",
             "port" => port,
             "ssl_enable" => true,
-            "ssl_cert" => certificate_file.path,
-            "ssl_key" => key_file.path,
-
-            # Trust our self-signed cert.
-            # TODO(sissel): Make this a separate certificate for the client
-            "ssl_extra_chain_certs" => certificate_file.path
+            "ssl_cert" => certificate,
+            "ssl_key" => key,
+            "ssl_certificate_authorities" => certificate
           }
         end
 
         subject(:input) { LogStash::Plugin.lookup("input", "tcp").new(config) }
 
         before do
-          certificate_file.write(certificate)
-          key_file.write(key)
-
-          # Close to flush the file writes.
-          certificate_file.close
-          key_file.close
           subject.register
         end
 
-        after do
-          File.unlink(certificate_file.path)
-          File.unlink(key_file.path)
+        context "when using a certificate chain" do
+          let(:chain_of_certificates) { helper.chain_of_certificates }
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "ssl_enable" => true,
+              "ssl_cert" => chain_of_certificates[:b_cert].path,
+              "ssl_key" => chain_of_certificates[:b_key].path,
+              "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+              "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+              "ssl_verify" => true
+            }
+          end
+          let(:tcp) { TCPSocket.new("127.0.0.1", port) }
+          let(:sslcontext) do
+            sslcontext = OpenSSL::SSL::SSLContext.new
+            sslcontext.verify_mode = OpenSSL::SSL::VERIFY_PEER
+            sslcontext.ca_file = chain_of_certificates[:root_ca].path
+            sslcontext.cert = OpenSSL::X509::Certificate.new(File.read(chain_of_certificates[:aa_cert].path))
+            sslcontext.key = OpenSSL::PKey::RSA.new(File.read(chain_of_certificates[:aa_key].path))
+            sslcontext
+          end
+          let(:sslsocket) { OpenSSL::SSL::SSLSocket.new(tcp, sslcontext) }
+          let(:input_task) { Stud::Task.new { input.run(queue) } }
+
+          before do
+            input_task
+          end
+
+          it "should be able to connect and write data" do
+            sslsocket.connect
+            sslsocket.write("Hello world\n")
+            tcp.flush
+            sslsocket.close
+            tcp.close
+            result = input_task.thread.join(0.5)
+            expect(result).to be_nil
+            expect(queue.size).to eq(1)
+          end
+
         end
 
         context "with a poorly-behaving client" do
