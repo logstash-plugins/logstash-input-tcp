@@ -403,13 +403,56 @@ describe LogStash::Inputs::Tcp do
             "ssl_enable" => true,
             "ssl_cert" => certificate_file.path,
             "ssl_key" => key_file.path,
-            "ssl_extra_chain_certs" => certificate_file.path
+            "ssl_certificate_authorities" => [ certificate_file.path ]
           }
         end
 
         let(:input) { subject }
         before(:each) { input.register }
         after(:each) { ssc.delete }
+
+        context "when using a certificate chain" do
+          let(:chain_of_certificates) { helper.chain_of_certificates }
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "ssl_enable" => true,
+              "ssl_cert" => chain_of_certificates[:b_cert].path,
+              "ssl_key" => chain_of_certificates[:b_key].path,
+              "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+              "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+              "ssl_verify" => true
+            }
+          end
+          let(:tcp) { TCPSocket.new("127.0.0.1", port) }
+          let(:sslcontext) do
+            sslcontext = OpenSSL::SSL::SSLContext.new
+            sslcontext.verify_mode = OpenSSL::SSL::VERIFY_PEER
+            sslcontext.ca_file = chain_of_certificates[:root_ca].path
+            sslcontext.cert = OpenSSL::X509::Certificate.new(File.read(chain_of_certificates[:aa_cert].path))
+            sslcontext.key = OpenSSL::PKey::RSA.new(File.read(chain_of_certificates[:aa_key].path))
+            sslcontext
+          end
+          let(:sslsocket) { OpenSSL::SSL::SSLSocket.new(tcp, sslcontext) }
+          let(:input_task) { Stud::Task.new { input.run(queue) } }
+
+          before do
+            input_task
+          end
+
+          it "should be able to connect and write data" do
+            sslsocket.connect
+            sslsocket.write("Hello world\n")
+            tcp.flush
+            sslsocket.close
+            tcp.close
+            result = input_task.thread.join(0.5)
+            expect(result).to be_nil
+            expect(queue.size).to eq(1)
+          end
+
+        end
 
         context "with a poorly-behaving client" do
           let!(:input_task) { Stud::Task.new { input.run(queue) } }
