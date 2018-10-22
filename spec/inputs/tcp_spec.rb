@@ -345,9 +345,9 @@ describe LogStash::Inputs::Tcp do
             "host" => "127.0.0.1",
             "port" => port,
             "ssl_enable" => true,
-            "ssl_cert" => certificate,
-            "ssl_key" => key,
-            "ssl_certificate_authorities" => certificate
+            "ssl_cert" => certificate.path,
+            "ssl_key" => key.path,
+            "ssl_certificate_authorities" => certificate.path
           }
         end
 
@@ -483,8 +483,8 @@ describe LogStash::Inputs::Tcp do
             let(:garbage) { Flores::Random.iterations(max_length).collect { Flores::Random.integer(1...255) }.pack("C*") }
 
             before do
-              sslcontext.cert = certificate
-              sslcontext.key = key
+              sslcontext.cert = OpenSSL::X509::Certificate.new(File.read(certificate))
+              sslcontext.key = OpenSSL::PKey::RSA.new(File.read(key))
               sslcontext.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
               sslsocket.connect
