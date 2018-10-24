@@ -12,7 +12,6 @@ require "socket"
 require "openssl"
 
 java_import org.logstash.tcp.InputLoop
-java_import org.logstash.tcp.SslOptions
 
 # Read events over a TCP socket.
 #
@@ -107,6 +106,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Useful when the CA chain is not necessary in the system store.
   config :ssl_extra_chain_certs, :validate => :array, :default => []
 
+  # Validate client certificates against these authorities. You can define multiple files or paths. All the certificates will be read and added to the trust store.
+  config :ssl_certificate_authorities, :validate => :array, :default => []
+
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
   config :tcp_keep_alive, :validate => :boolean, :default => false
 
@@ -145,12 +147,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
     if server?
-      begin
-        ssl_context = get_ssl_context(SslOptions)
-      rescue => e
-        @logger.warn("Failed to create SslContext from certificate/key pair. Attempting PKCS#1 to PKCS#8 conversion..", :exception => e.class, :message => e.message)
-        ssl_context = get_ssl_context(CompatSslOptions)
-      end
+      ssl_context = get_ssl_context(SslOptions)
 
       @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
                             ssl_context, @logger.to_java(org.apache.logging.log4j.Logger))
@@ -284,6 +281,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       @ssl_context = OpenSSL::SSL::SSLContext.new
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase.value)
+      if @ssl_extra_chain_certs.any?
+        @ssl_context.extra_chain_cert = @ssl_extra_chain_certs.map {|cert_path| OpenSSL::X509::Certificate.new(File.read(cert_path)) }
+        @ssl_context.extra_chain_cert.unshift(OpenSSL::X509::Certificate.new(File.read(@ssl_cert)))
+      end
       if @ssl_verify
         @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
@@ -299,7 +300,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def load_cert_store
     cert_store = OpenSSL::X509::Store.new
     cert_store.set_default_paths
-    @ssl_extra_chain_certs.each do |cert|
+    @ssl_certificate_authorities.each do |cert|
       cert_store.add_file(cert)
     end
     cert_store
@@ -369,6 +370,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       .set_ssl_key(@ssl_key)
       .set_ssl_key_passphrase(@ssl_key_passphrase.value)
       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
+      .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
       .build.toSslContext()
   end
 end
