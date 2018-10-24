@@ -1,3 +1,9 @@
+## 5.2.0
+  - Added support for pkcs1 and pkcs8 key formats [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
+  - Changed server-mode SSL to run on top of Netty [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
+  - Changed travis testing infra to use logstash tarballs [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
+  - Fixed certificate chain handling and validation [#124](https://github.com/logstash-plugins/logstash-input-tcp/issues/124)
+
 ## 5.1.0
  - Added new configuration option `dns_reverse_lookup_enabled` to allow users to disable costly DNS reverse lookups [#100](https://github.com/logstash-plugins/logstash-input-tcp/issues/100)
 
