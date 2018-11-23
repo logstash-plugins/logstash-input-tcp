@@ -459,8 +459,14 @@ describe LogStash::Inputs::Tcp do
 
           context "that disconnects before doing TLS handshake" do
             before do
+              begin
               client = TCPSocket.new("127.0.0.1", port)
               client.close
+              rescue Errno::ECONNREFUSED
+                sleep 1
+                client = TCPSocket.new("127.0.0.1", port)
+                client.close
+              end
             end
 
             it "should not negatively impact the plugin" do
