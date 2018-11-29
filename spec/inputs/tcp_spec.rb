@@ -425,7 +425,14 @@ describe LogStash::Inputs::Tcp do
               "ssl_verify" => true
             }
           end
-          let(:tcp) { TCPSocket.new("127.0.0.1", port) }
+          let(:tcp) do
+            begin
+              socket = TCPSocket.new("127.0.0.1", port)
+            rescue Errno::ECONNREFUSED
+              sleep 1
+              socket = TCPSocket.new("127.0.0.1", port)
+            end
+          end
           let(:sslcontext) do
             sslcontext = OpenSSL::SSL::SSLContext.new
             sslcontext.verify_mode = OpenSSL::SSL::VERIFY_PEER
@@ -459,8 +466,14 @@ describe LogStash::Inputs::Tcp do
 
           context "that disconnects before doing TLS handshake" do
             before do
-              client = TCPSocket.new("127.0.0.1", port)
-              client.close
+              begin
+                client = TCPSocket.new("127.0.0.1", port)
+                client.close
+              rescue Errno::ECONNREFUSED
+                sleep 1
+                client = TCPSocket.new("127.0.0.1", port)
+                client.close
+              end
             end
 
             it "should not negatively impact the plugin" do
