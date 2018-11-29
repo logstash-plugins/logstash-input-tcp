@@ -7,7 +7,7 @@ require "stud/temporary"
 
 class TcpHelpers
 
-  def pipelineless_input(plugin, size, &block)
+  def self.pipelineless_input(plugin, size, &block)
     queue = Queue.new
     input_thread = Thread.new do
       plugin.run(queue)
@@ -32,12 +32,15 @@ class TcpHelpers
     a_cert,   a_key = build_certificate(root_ca, root_key, "A_Cert")
     aa_cert, aa_key = build_certificate(root_ca, root_key, "AA_Cert")
     b_cert, b_key = build_certificate(a_cert, a_key, "B_Cert")
+    be_cert, be_key = build_certificate(a_cert, a_key, "BE_Cert", "passpasspassword")
     c_cert, c_key = build_certificate(b_cert, b_key, "C_Cert")
     { :root_ca => new_temp_file('', root_ca), :root_key => new_temp_file('', root_key),
       :a_cert  => new_temp_file('', a_cert),  :a_key    => new_temp_file('', a_key),
       :aa_cert => new_temp_file('', aa_cert), :aa_key   => new_temp_file('', aa_key),
       :b_cert  => new_temp_file('', b_cert),  :b_key    => new_temp_file('', b_key),
-      :c_cert  => new_temp_file('', c_cert),  :c_key    => new_temp_file('', c_key)}
+      :be_cert => new_temp_file('', be_cert), :be_key   => new_temp_file('', be_key),
+      :c_cert  => new_temp_file('', c_cert),  :c_key    => new_temp_file('', c_key),
+    }
   end
 
   private
@@ -49,12 +52,18 @@ class TcpHelpers
     file
   end
 
-  def build_certificate(root_ca, root_key=nil, name="")
+  def build_certificate(root_ca, root_key, name, password=nil)
     key = ( root_key.nil? ? OpenSSL::PKey::RSA.new(2048) : root_key )
     options = { :serial => 2, :subject => "/DC=org/DC=ruby-lang/CN=Ruby#{name}", :key => key, :issuer => root_ca.subject}
     cert = new_certificate(options)
     add_ca_extensions(cert, nil, root_ca)
-    [ cert.sign(key, OpenSSL::Digest::SHA256.new), key ]
+    if password
+      key_text = key.to_pem(OpenSSL::Cipher::AES256.new(:CFB), password)
+    else
+      key_text = key
+    end
+
+    [ cert.sign(key, OpenSSL::Digest::SHA256.new), key_text ]
   end
 
   def build_root_ca

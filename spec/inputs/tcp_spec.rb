@@ -391,40 +391,13 @@ describe LogStash::Inputs::Tcp do
       end
 
       context "when ssl_enable is true" do
-        let(:ssc) { SelfSignedCertificate.new }
-        let(:certificate_file) { ssc.certificate }
-        let(:key_file) { ssc.private_key}
-        let(:queue) { Queue.new }
-
-        let(:config) do
-          {
-            "host" => "127.0.0.1",
-            "port" => port,
-            "ssl_enable" => true,
-            "ssl_cert" => certificate_file.path,
-            "ssl_key" => key_file.path,
-            "ssl_certificate_authorities" => [ certificate_file.path ]
-          }
-        end
-
         let(:input) { subject }
-        before(:each) { input.register }
-        after(:each) { ssc.delete }
+        let(:queue) { Queue.new }
+        before(:each) { subject.register }
 
         context "when using a certificate chain" do
-          let(:chain_of_certificates) { helper.chain_of_certificates }
-          let(:config) do
-            {
-              "host" => "127.0.0.1",
-              "port" => port,
-              "ssl_enable" => true,
-              "ssl_cert" => chain_of_certificates[:b_cert].path,
-              "ssl_key" => chain_of_certificates[:b_key].path,
-              "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
-              "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
-              "ssl_verify" => true
-            }
-          end
+          chain_of_certificates = TcpHelpers.new.chain_of_certificates
+
           let(:tcp) do
             begin
               socket = TCPSocket.new("127.0.0.1", port)
@@ -442,23 +415,60 @@ describe LogStash::Inputs::Tcp do
             sslcontext
           end
           let(:sslsocket) { OpenSSL::SSL::SSLSocket.new(tcp, sslcontext) }
-          let(:input_task) { Stud::Task.new { input.run(queue) } }
+          let(:message) { "message to #{port}" }
 
-          before do
-            input_task
+          context "with a non encrypted private key" do
+            let(:config) do
+              {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_key" => chain_of_certificates[:b_key].path,
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+                "ssl_verify" => true
+              }
+            end
+            it "should be able to connect and write data" do
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(result.first.get("message")).to eq(message)
+            end
           end
 
-          it "should be able to connect and write data" do
-            sslsocket.connect
-            sslsocket.write("Hello world\n")
-            tcp.flush
-            sslsocket.close
-            tcp.close
-            result = input_task.thread.join(0.5)
-            expect(result).to be_nil
-            expect(queue.size).to eq(1)
+          context "when using an encrypted private key" do
+            let(:config) do
+              {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => chain_of_certificates[:be_cert].path,
+                "ssl_key" => chain_of_certificates[:be_key].path,
+                "ssl_key_passphrase" => "passpasspassword",
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+                "ssl_verify" => true
+              }
+            end
+            it "should be able to connect and write data" do
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(result.first.get("message")).to eq(message)
+            end
           end
-
         end
 
         context "with a poorly-behaving client" do

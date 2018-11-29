@@ -9,7 +9,12 @@ java_import 'java.security.cert.X509Certificate'
 java_import 'org.bouncycastle.asn1.pkcs.PrivateKeyInfo'
 java_import 'org.bouncycastle.openssl.PEMKeyPair'
 java_import 'org.bouncycastle.openssl.PEMParser'
+java_import 'org.bouncycastle.openssl.PEMParser'
+java_import 'org.bouncycastle.openssl.PEMEncryptedKeyPair'
 java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
+java_import 'org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder'
+java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
+
 
 # Simulate a normal SslOptions builder:
 #
@@ -80,6 +85,12 @@ class SslOptions
       private_key = JcaPEMKeyConverter.new.get_key_pair(obj).private
     when PrivateKeyInfo # likely pkcs#8
       private_key = JcaPEMKeyConverter.new.get_private_key(obj)
+    when PEMEncryptedKeyPair # likely encrypted pkcs#1
+      key_char_array = @ssl_key_passphrase.to_java.toCharArray
+      java.security.Security.addProvider(BouncyCastleProvider.new)
+      decryptor = JcePEMDecryptorProviderBuilder.new.setProvider("BC").build(key_char_array)
+      key_pair = obj.decryptKeyPair(decryptor)
+      private_key = JcaPEMKeyConverter.new.get_key_pair(key_pair).private
     else
       raise "Could not recognize 'ssl_key' format. Class: #{obj.class}"
     end
