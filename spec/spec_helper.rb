@@ -3,6 +3,10 @@ require "logstash/devutils/rspec/spec_helper"
 require "tempfile"
 require "stud/temporary"
 
+java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder'
+java_import 'org.bouncycastle.openssl.jcajce.JcaPEMWriter'
+java_import 'org.bouncycastle.openssl.jcajce.JcaPKCS8Generator'
+java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
 # this has been taken from the udp input, it should be DRYed
 
 class TcpHelpers
@@ -32,15 +36,32 @@ class TcpHelpers
     a_cert,   a_key = build_certificate(root_ca, root_key, "A_Cert")
     aa_cert, aa_key = build_certificate(root_ca, root_key, "AA_Cert")
     b_cert, b_key = build_certificate(a_cert, a_key, "B_Cert")
-    be_cert, be_key = build_certificate(a_cert, a_key, "BE_Cert", "passpasspassword")
+    be_cert, be_key, be_key_text = build_certificate(a_cert, a_key, "BE_Cert", "passpasspassword")
+    be_key_pkcs8 = convert_private_key_to_pkcs8_with_passpharse(be_key, "passpasspassword")
     c_cert, c_key = build_certificate(b_cert, b_key, "C_Cert")
     { :root_ca => new_temp_file('', root_ca), :root_key => new_temp_file('', root_key),
       :a_cert  => new_temp_file('', a_cert),  :a_key    => new_temp_file('', a_key),
       :aa_cert => new_temp_file('', aa_cert), :aa_key   => new_temp_file('', aa_key),
       :b_cert  => new_temp_file('', b_cert),  :b_key    => new_temp_file('', b_key),
-      :be_cert => new_temp_file('', be_cert), :be_key   => new_temp_file('', be_key),
+      :be_cert => new_temp_file('', be_cert), :be_key   => new_temp_file('', be_key_text), :be_key_pkcs8 => new_temp_file('', be_key_pkcs8),
       :c_cert  => new_temp_file('', c_cert),  :c_key    => new_temp_file('', c_key),
     }
+  end
+
+  def convert_private_key_to_pkcs8_with_passpharse(pkcs1key, passphrase)
+    pem_parser = PEMParser.new(java.io.StringReader.new(pkcs1key.to_pem))
+    kp = pem_parser.read_object
+    java.security.Security.addProvider(BouncyCastleProvider.new)
+    converter  = JcaPEMKeyConverter.new.setProvider("BC")
+    key = converter.getPrivateKey(kp.get_private_key_info)
+    alg = org.bouncycastle.openssl.PKCS8Generator::PBE_SHA1_RC4_128
+    enc =  JceOpenSSLPKCS8EncryptorBuilder.new(alg).set_passsword(passphrase.to_java.to_char_array).build
+    sw = java.io.StringWriter.new
+    writer = JcaPEMWriter.new(sw)
+    writer.write_object(JcaPKCS8Generator.new(key, enc))
+    writer.flush
+    writer.close
+    sw
   end
 
   private
@@ -59,11 +80,10 @@ class TcpHelpers
     add_ca_extensions(cert, nil, root_ca)
     if password
       key_text = key.to_pem(OpenSSL::Cipher::AES256.new(:CFB), password)
+      [ cert.sign(key, OpenSSL::Digest::SHA256.new), key, key_text ]
     else
-      key_text = key
+      [ cert.sign(key, OpenSSL::Digest::SHA256.new), key ]
     end
-
-    [ cert.sign(key, OpenSSL::Digest::SHA256.new), key_text ]
   end
 
   def build_root_ca

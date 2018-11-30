@@ -1,19 +1,24 @@
 require 'openssl'
 
+require 'base64'
 java_import 'io.netty.handler.ssl.ClientAuth'
 java_import 'io.netty.handler.ssl.SslContextBuilder'
 java_import 'java.io.FileInputStream'
 java_import 'java.io.FileReader'
 java_import 'java.security.cert.CertificateFactory'
 java_import 'java.security.cert.X509Certificate'
+java_import 'javax.crypto.spec.PBEKeySpec'
+java_import 'javax.crypto.EncryptedPrivateKeyInfo'
+java_import 'javax.crypto.SecretKeyFactory'
+java_import 'java.security.KeyFactory'
 java_import 'org.bouncycastle.asn1.pkcs.PrivateKeyInfo'
 java_import 'org.bouncycastle.openssl.PEMKeyPair'
-java_import 'org.bouncycastle.openssl.PEMParser'
 java_import 'org.bouncycastle.openssl.PEMParser'
 java_import 'org.bouncycastle.openssl.PEMEncryptedKeyPair'
 java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
 java_import 'org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder'
 java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
+java_import 'org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo'
 
 
 # Simulate a normal SslOptions builder:
@@ -91,6 +96,16 @@ class SslOptions
       decryptor = JcePEMDecryptorProviderBuilder.new.setProvider("BC").build(key_char_array)
       key_pair = obj.decryptKeyPair(decryptor)
       private_key = JcaPEMKeyConverter.new.get_key_pair(key_pair).private
+    when PKCS8EncryptedPrivateKeyInfo # encrypted pkcs#8
+      encrypted = IO.read(@ssl_key_path)
+      encrypted = encrypted.gsub("-----BEGIN ENCRYPTED PRIVATE KEY-----", "")
+      encrypted = encrypted.gsub("-----END ENCRYPTED PRIVATE KEY-----", "")
+      pkInfo = EncryptedPrivateKeyInfo.new(Base64.decode64(encrypted).to_java_bytes)
+      keySpec = PBEKeySpec.new(@ssl_key_passphrase.to_java.toCharArray())
+      pbeKeyFactory = SecretKeyFactory.getInstance(pkInfo.getAlgName())
+      encodedKeySpec = pkInfo.getKeySpec(pbeKeyFactory.generateSecret(keySpec))
+      keyFactory = KeyFactory.getInstance("RSA")
+      private_key = keyFactory.generatePrivate(encodedKeySpec)
     else
       raise "Could not recognize 'ssl_key' format. Class: #{obj.class}"
     end
