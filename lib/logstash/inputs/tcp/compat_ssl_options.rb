@@ -7,17 +7,14 @@ java_import 'java.io.FileInputStream'
 java_import 'java.io.FileReader'
 java_import 'java.security.cert.CertificateFactory'
 java_import 'java.security.cert.X509Certificate'
-java_import 'javax.crypto.spec.PBEKeySpec'
-java_import 'javax.crypto.EncryptedPrivateKeyInfo'
-java_import 'javax.crypto.SecretKeyFactory'
-java_import 'java.security.KeyFactory'
 java_import 'org.bouncycastle.asn1.pkcs.PrivateKeyInfo'
+java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
 java_import 'org.bouncycastle.openssl.PEMKeyPair'
 java_import 'org.bouncycastle.openssl.PEMParser'
 java_import 'org.bouncycastle.openssl.PEMEncryptedKeyPair'
 java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
 java_import 'org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder'
-java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
+java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder'
 java_import 'org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo'
 
 
@@ -84,28 +81,22 @@ class SslOptions
 
     # convert key from pkcs1 to pkcs8 and get PrivateKey object
     pem_parser = PEMParser.new(FileReader.new(@ssl_key_path))
-
-    case obj = pem_parser.read_object
-    when PEMKeyPair # likely pkcs#1
-      private_key = JcaPEMKeyConverter.new.get_key_pair(obj).private
-    when PrivateKeyInfo # likely pkcs#8
-      private_key = JcaPEMKeyConverter.new.get_private_key(obj)
-    when PEMEncryptedKeyPair # likely encrypted pkcs#1
+    java.security.Security.addProvider(BouncyCastleProvider.new)
+    converter = JcaPEMKeyConverter.new
+    case obj = pem_parser.readObject
+    when PEMKeyPair # unencrypted pkcs#1
+      private_key = converter.getKeyPair(obj).private
+    when PrivateKeyInfo # unencrypted pkcs#8
+      private_key = converter.getPrivateKey(obj)
+    when PEMEncryptedKeyPair # encrypted pkcs#1
       key_char_array = @ssl_key_passphrase.to_java.toCharArray
-      java.security.Security.addProvider(BouncyCastleProvider.new)
-      decryptor = JcePEMDecryptorProviderBuilder.new.setProvider("BC").build(key_char_array)
+      decryptor = JcePEMDecryptorProviderBuilder.new.build(key_char_array)
       key_pair = obj.decryptKeyPair(decryptor)
-      private_key = JcaPEMKeyConverter.new.get_key_pair(key_pair).private
+      private_key = converter.getKeyPair(key_pair).private
     when PKCS8EncryptedPrivateKeyInfo # encrypted pkcs#8
-      encrypted = IO.read(@ssl_key_path)
-      encrypted = encrypted.gsub("-----BEGIN ENCRYPTED PRIVATE KEY-----", "")
-      encrypted = encrypted.gsub("-----END ENCRYPTED PRIVATE KEY-----", "")
-      pkInfo = EncryptedPrivateKeyInfo.new(Base64.decode64(encrypted).to_java_bytes)
-      keySpec = PBEKeySpec.new(@ssl_key_passphrase.to_java.toCharArray())
-      pbeKeyFactory = SecretKeyFactory.getInstance(pkInfo.getAlgName())
-      encodedKeySpec = pkInfo.getKeySpec(pbeKeyFactory.generateSecret(keySpec))
-      keyFactory = KeyFactory.getInstance("RSA")
-      private_key = keyFactory.generatePrivate(encodedKeySpec)
+      key_char_array = @ssl_key_passphrase.to_java.toCharArray
+      key = JceOpenSSLPKCS8DecryptorProviderBuilder.new.build(key_char_array)
+      private_key = converter.getPrivateKey(obj.decryptPrivateKeyInfo(key))
     else
       raise "Could not recognize 'ssl_key' format. Class: #{obj.class}"
     end
@@ -113,14 +104,14 @@ class SslOptions
     @ssl_extra_chain_certs.each do |cert|
       cert_chain << cf.generateCertificate(FileInputStream.new(cert))
     end
-    sslContextBuilder = SslContextBuilder.forServer(private_key, @ssl_key_passphrase, cert_chain.to_java(java.security.cert.X509Certificate))
+    sslContextBuilder = SslContextBuilder.forServer(private_key, @ssl_key_passphrase, cert_chain.to_java(X509Certificate))
 
     trust_certs = @ssl_certificate_authorities.map do |cert|
       cf.generateCertificate(FileInputStream.new(cert))
     end
 
     if trust_certs.any?
-      sslContextBuilder.trustManager(trust_certs.to_java(java.security.cert.X509Certificate))
+      sslContextBuilder.trustManager(trust_certs.to_java(X509Certificate))
     end
 
     sslContextBuilder.clientAuth(@ssl_verify ? ClientAuth::REQUIRE : ClientAuth::NONE)
