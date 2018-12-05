@@ -1,6 +1,5 @@
 require 'openssl'
 
-require 'base64'
 java_import 'io.netty.handler.ssl.ClientAuth'
 java_import 'io.netty.handler.ssl.SslContextBuilder'
 java_import 'java.io.FileInputStream'
