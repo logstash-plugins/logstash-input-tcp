@@ -7,7 +7,7 @@ RUN cp /usr/share/logstash/logstash-core/versions-gem-copy.yml /usr/share/logsta
 ENV PATH="${PATH}:/usr/share/logstash/vendor/jruby/bin"
 ENV LOGSTASH_SOURCE=1
 ENV JARS_SKIP="true"
-RUN gem install bundler
+RUN gem install bundler -v '< 2'
 WORKDIR /usr/share/plugins/logstash-input-tcp
 RUN bundle install
 COPY --chown=logstash:logstash . /usr/share/plugins/logstash-input-tcp
