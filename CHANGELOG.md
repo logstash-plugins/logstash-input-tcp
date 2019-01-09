@@ -1,3 +1,6 @@
+## 6.0.0
+  - Removed obsolete `data_timeout` and `ssl_cacert` options
+
 ## 5.2.0
   - Added support for pkcs1 and pkcs8 key formats [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
   - Changed server-mode SSL to run on top of Netty [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
