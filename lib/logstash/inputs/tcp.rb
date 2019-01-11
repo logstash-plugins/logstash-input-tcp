@@ -74,8 +74,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # When mode is `client`, the port to connect to.
   config :port, :validate => :number, :required => true
 
-  config :data_timeout, :validate => :number, :obsolete => "This setting is not used any more."
-
   # Mode to operate in. `server` listens for client connections,
   # `client` connects to a server.
   config :mode, :validate => ["server", "client"], :default => "server"
@@ -90,8 +88,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Verify the identity of the other end of the SSL connection against the CA.
   # For input, sets the field `sslsubject` to that of the client certificate.
   config :ssl_verify, :validate => :boolean, :default => true
-
-  config :ssl_cacert, :validate => :path, :obsolete => "This setting is obsolete. Use ssl_extra_chain_certs instead"
 
   # SSL certificate path
   config :ssl_cert, :validate => :path
