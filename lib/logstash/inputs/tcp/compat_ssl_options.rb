@@ -76,7 +76,9 @@ class SslOptions
     # create certificate object
     cf = CertificateFactory.getInstance("X.509")
     cert_chain = []
-    cert_chain << cf.generateCertificate(FileInputStream.new(@ssl_cert_path))
+    fetch_certificates_from_file(@ssl_cert_path, cf) do |cert|
+      cert_chain << cert
+    end
 
     # convert key from pkcs1 to pkcs8 and get PrivateKey object
     pem_parser = PEMParser.new(FileReader.new(@ssl_key_path))
@@ -100,13 +102,19 @@ class SslOptions
       raise "Could not recognize 'ssl_key' format. Class: #{obj.class}"
     end
 
-    @ssl_extra_chain_certs.each do |cert|
-      cert_chain << cf.generateCertificate(FileInputStream.new(cert))
+    @ssl_extra_chain_certs.each do |file|
+      fetch_certificates_from_file(file, cf) do |cert|
+        cert_chain << cert
+      end
     end
     sslContextBuilder = SslContextBuilder.forServer(private_key, @ssl_key_passphrase, cert_chain.to_java(X509Certificate))
 
-    trust_certs = @ssl_certificate_authorities.map do |cert|
-      cf.generateCertificate(FileInputStream.new(cert))
+    trust_certs = []
+
+    @ssl_certificate_authorities.each do |file|
+      fetch_certificates_from_file(file, cf) do |cert|
+        trust_certs << cert
+      end
     end
 
     if trust_certs.any?
@@ -115,5 +123,16 @@ class SslOptions
 
     sslContextBuilder.clientAuth(@ssl_verify ? ClientAuth::REQUIRE : ClientAuth::NONE)
     sslContextBuilder.build()
+  end
+
+  private
+  def fetch_certificates_from_file(file, cf)
+    fis = FileInputStream.new(file)
+
+    while (fis.available > 0) do
+      yield cf.generateCertificate(fis)
+    end
+  ensure
+    fis.close if fis
   end
 end
