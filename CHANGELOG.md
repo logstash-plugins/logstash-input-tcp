@@ -1,3 +1,10 @@
+## 5.2.1
+  - Support multiple certificates per file [#140](https://github.com/logstash-plugins/logstash-input-tcp/pull/140)
+  - Fixed support for encrypted pkcs8 private keys [#133](https://github.com/logstash-plugins/logstash-input-tcp/pull/133)
+  - Added support for encrypted pem pkcs1 private keys [#131](https://github.com/logstash-plugins/logstash-input-tcp/pull/131)
+  - Changed testing to docker [#128](https://github.com/logstash-plugins/logstash-input-tcp/pull/128)
+  - Fixed heading for `ssl_certificate_authorities` docs [#130](https://github.com/logstash-plugins/logstash-input-tcp/pull/130)
+
 ## 5.2.0
   - Added support for pkcs1 and pkcs8 key formats [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
   - Changed server-mode SSL to run on top of Netty [#122](https://github.com/logstash-plugins/logstash-input-tcp/issues/122)
