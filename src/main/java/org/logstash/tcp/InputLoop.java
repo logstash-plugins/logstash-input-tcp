@@ -34,9 +34,9 @@ public final class InputLoop implements Runnable, Closeable {
     private final EventLoopGroup worker;
 
     /**
-     * The Server Socket's {@link ChannelFuture}.
+     * The Server Bootstrap
      */
-    private final ChannelFuture future;
+    private final ServerBootstrap serverBootstrap;
 
     /**
      * Reference to the logger.
@@ -47,6 +47,16 @@ public final class InputLoop implements Runnable, Closeable {
      * SSL configuration.
      */
     private final SslContext sslContext;
+
+    /**
+     * TCP Port.
+     */
+    private final int port;
+
+    /**
+     * TCP Host.
+     */
+    private final String host;
 
     /**
      * Ctor.
@@ -60,19 +70,21 @@ public final class InputLoop implements Runnable, Closeable {
 
         this.logger = logger;
         this.sslContext = sslContext;
+        this.host = host;
+        this.port = port;
         worker = new NioEventLoopGroup();
         boss = new NioEventLoopGroup(1);
-        future = new ServerBootstrap().group(boss, worker)
+        serverBootstrap = new ServerBootstrap().group(boss, worker)
             .channel(NioServerSocketChannel.class)
             .option(ChannelOption.SO_BACKLOG, 1024)
             .childOption(ChannelOption.SO_KEEPALIVE, keepAlive)
-            .childHandler(new InputLoop.InputHandler(decoder, sslContext, logger)).bind(host, port);
+            .childHandler(new InputLoop.InputHandler(decoder, sslContext, logger));
     }
 
     @Override
     public void run() {
         try {
-            future.sync().channel().closeFuture().sync();
+            serverBootstrap.bind(host, port).sync().channel().closeFuture().sync();
         } catch (final InterruptedException ex) {
             throw new IllegalStateException(ex);
         }
