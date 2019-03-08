@@ -1,3 +1,6 @@
+## 6.0.1
+  - Support multiple certificates per file [#140](https://github.com/logstash-plugins/logstash-input-tcp/pull/140)
+
 ## 6.0.0
   - Removed obsolete `data_timeout` and `ssl_cacert` options
 
