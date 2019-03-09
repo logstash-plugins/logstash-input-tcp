@@ -1,3 +1,6 @@
+## 6.0.2
+  - Fixed race condition where data would be accepted before queue was configured
+
 ## 6.0.1
   - Support multiple certificates per file [#140](https://github.com/logstash-plugins/logstash-input-tcp/pull/140)
 
