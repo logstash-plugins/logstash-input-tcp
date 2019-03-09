@@ -141,11 +141,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def register
     fix_streaming_codecs
 
-    # note that since we are opening a socket in register, we must also make sure we close it
-    # in the close method even if we also close it in the stop method since we could have
-    # a situation where register is called but not run & stop.
-
-    @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
     if server?
       ssl_context = get_ssl_context(SslOptions)
 
@@ -157,6 +152,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def run(output_queue)
     @output_queue = output_queue
     if server?
+      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
       @loop.run
     else
       run_client()

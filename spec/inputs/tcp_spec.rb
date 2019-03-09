@@ -399,12 +399,7 @@ describe LogStash::Inputs::Tcp do
           chain_of_certificates = TcpHelpers.new.chain_of_certificates
 
           let(:tcp) do
-            begin
-              socket = TCPSocket.new("127.0.0.1", port)
-            rescue Errno::ECONNREFUSED
-              sleep 1
-              socket = TCPSocket.new("127.0.0.1", port)
-            end
+            Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
           end
           let(:sslcontext) do
             sslcontext = OpenSSL::SSL::SSLContext.new
@@ -502,14 +497,8 @@ describe LogStash::Inputs::Tcp do
 
           context "that disconnects before doing TLS handshake" do
             before do
-              begin
-                client = TCPSocket.new("127.0.0.1", port)
-                client.close
-              rescue Errno::ECONNREFUSED
-                sleep 1
-                client = TCPSocket.new("127.0.0.1", port)
-                client.close
-              end
+              client = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+              client.close
             end
 
             it "should not negatively impact the plugin" do
@@ -540,7 +529,7 @@ describe LogStash::Inputs::Tcp do
               # Assertion to verify this test is actually sending something.
               expect(garbage.length).to be > 0
 
-              client = TCPSocket.new("127.0.0.1", port)
+              client = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
               client.write(garbage)
               client.flush
               Thread.new { sleep(1); client.close }

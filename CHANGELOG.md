@@ -1,3 +1,6 @@
+## 5.2.2
+  - Fixed race condition where data would be accepted before queue was configured [#142](https://github.com/logstash-plugins/logstash-input-tcp/pull/142)
+
 ## 5.2.1
   - Support multiple certificates per file [#140](https://github.com/logstash-plugins/logstash-input-tcp/pull/140)
   - Fixed support for encrypted pkcs8 private keys [#133](https://github.com/logstash-plugins/logstash-input-tcp/pull/133)
