@@ -382,6 +382,35 @@ describe LogStash::Inputs::Tcp do
             ssc.delete
           end
         end
+
+        context "with multiple certificates with empty spaces in them" do
+          let(:ssc) { SelfSignedCertificate.new }
+          let(:certificate_file) { ssc.certificate }
+          let(:key_file) { ssc.private_key}
+          let(:ssc_2) { SelfSignedCertificate.new }
+          let(:certificate_file_2) { ssc.certificate }
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "ssl_enable" => true,
+              "ssl_cert" => certificate_file.path,
+              "ssl_key" => key_file.path
+            }
+          end
+          before(:each) do
+            File.open(certificate_file.path, "a") do |file|
+              path = ssc_2.certificate.path
+              file.puts("\n")
+              file.puts(IO.read(path))
+              file.puts("\n")
+            end
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+        end
       end
     end
 

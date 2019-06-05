@@ -127,12 +127,19 @@ class SslOptions
 
   private
   def fetch_certificates_from_file(file, cf)
-    fis = FileInputStream.new(file)
+    fis = java.io.FileInputStream.new(file)
 
     while (fis.available > 0) do
-      yield cf.generateCertificate(fis)
+      cert = generate_certificate(cf, fis)
+      yield cert if cert
     end
   ensure
     fis.close if fis
+  end
+
+  def generate_certificate(cf, fis)
+    cf.generateCertificate(fis)
+  rescue Java::JavaSecurityCert::CertificateException => e
+    raise e unless e.cause.message == "Empty input"
   end
 end

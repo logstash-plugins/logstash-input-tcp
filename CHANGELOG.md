@@ -1,3 +1,6 @@
+## 5.2.3
+  - Skip empty lines while reading certificate files [#144](https://github.com/logstash-plugins/logstash-input-tcp/issues/144)
+
 ## 5.2.2
   - Fixed race condition where data would be accepted before queue was configured [#142](https://github.com/logstash-plugins/logstash-input-tcp/pull/142)
 
