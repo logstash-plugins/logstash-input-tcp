@@ -107,7 +107,9 @@ class SslOptions
         cert_chain << cert
       end
     end
-    sslContextBuilder = SslContextBuilder.forServer(private_key, @ssl_key_passphrase, cert_chain.to_java(X509Certificate))
+
+    # Fully Qualify name of `SslContextBuilder` to avoid picking up the implementation of `SslContextBuilder` from the beats input
+    sslContextBuilder = Java::IoNettyHandlerSsl::SslContextBuilder.forServer(private_key, @ssl_key_passphrase, cert_chain.to_java(X509Certificate))
 
     trust_certs = []
 
