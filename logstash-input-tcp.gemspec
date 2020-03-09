@@ -32,6 +32,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-codec-multiline'
 
   s.add_development_dependency 'logstash-devutils'
+  s.add_development_dependency 'insist'
   s.add_development_dependency 'flores', '~> 0.0.6'
   s.add_development_dependency 'stud', '~> 0.0.22'
 end
