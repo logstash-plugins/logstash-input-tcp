@@ -7,6 +7,7 @@ require "stud/temporary"
 
 class TcpHelpers
 
+  java_import 'org.bouncycastle.openssl.PEMParser'
   java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder'
   java_import 'org.bouncycastle.openssl.jcajce.JcaPEMWriter'
   java_import 'org.bouncycastle.openssl.jcajce.JcaPKCS8Generator'
