@@ -3,13 +3,16 @@ require "logstash/devutils/rspec/spec_helper"
 require "tempfile"
 require "stud/temporary"
 
-java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder'
-java_import 'org.bouncycastle.openssl.jcajce.JcaPEMWriter'
-java_import 'org.bouncycastle.openssl.jcajce.JcaPKCS8Generator'
-java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
 # this has been taken from the udp input, it should be DRYed
 
 class TcpHelpers
+
+  java_import 'org.bouncycastle.openssl.PEMParser'
+  java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder'
+  java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
+  java_import 'org.bouncycastle.openssl.jcajce.JcaPEMWriter'
+  java_import 'org.bouncycastle.openssl.jcajce.JcaPKCS8Generator'
+  java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
 
   def self.pipelineless_input(plugin, size, &block)
     queue = Queue.new

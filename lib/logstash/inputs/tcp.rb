@@ -11,8 +11,6 @@ require "logstash/inputs/tcp/compat_ssl_options"
 require "socket"
 require "openssl"
 
-java_import org.logstash.tcp.InputLoop
-
 # Read events over a TCP socket.
 #
 # Like stdin and file inputs, each event is assumed to be one line of text.
@@ -23,7 +21,7 @@ java_import org.logstash.tcp.InputLoop
 # #### Accepting log4j2 logs
 #
 # Log4j2 can send JSON over a socket, and we can use that combined with our tcp
-# input to accept the logs. 
+# input to accept the logs.
 #
 # First, we need to configure your application to send logs in JSON over a
 # socket. The following log4j2.xml accomplishes this task.
@@ -62,6 +60,9 @@ java_import org.logstash.tcp.InputLoop
 #       }
 #     }
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
+
+  java_import org.logstash.tcp.InputLoop
+
   config_name "tcp"
 
   default :codec, "line"
@@ -261,7 +262,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     decorate(event)
     @output_queue << event
   end
-  
+
   def server?
     @mode == "server"
   end

@@ -1,11 +1,9 @@
 # encoding: utf-8
 require 'java'
 
-java_import org.logstash.tcp.Decoder
-
 class DecoderImpl
 
-  include Decoder
+  include org.logstash.tcp.Decoder
 
   def initialize(codec, tcp)
     @tcp = tcp

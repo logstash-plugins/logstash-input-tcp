@@ -1,22 +1,5 @@
 require 'openssl'
 
-java_import 'io.netty.handler.ssl.ClientAuth'
-java_import 'io.netty.handler.ssl.SslContextBuilder'
-java_import 'java.io.FileInputStream'
-java_import 'java.io.FileReader'
-java_import 'java.security.cert.CertificateFactory'
-java_import 'java.security.cert.X509Certificate'
-java_import 'org.bouncycastle.asn1.pkcs.PrivateKeyInfo'
-java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
-java_import 'org.bouncycastle.openssl.PEMKeyPair'
-java_import 'org.bouncycastle.openssl.PEMParser'
-java_import 'org.bouncycastle.openssl.PEMEncryptedKeyPair'
-java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
-java_import 'org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder'
-java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder'
-java_import 'org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo'
-
-
 # Simulate a normal SslOptions builder:
 #
 #     ssl_context = SslOptions.builder
@@ -29,6 +12,20 @@ java_import 'org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo'
 #       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
 #       .build.toSslContext()
 class SslOptions
+
+  java_import 'io.netty.handler.ssl.ClientAuth'
+  java_import 'io.netty.handler.ssl.SslContextBuilder'
+  java_import 'java.security.cert.X509Certificate'
+  java_import 'org.bouncycastle.asn1.pkcs.PrivateKeyInfo'
+  java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
+  java_import 'org.bouncycastle.openssl.PEMKeyPair'
+  java_import 'org.bouncycastle.openssl.PEMParser'
+  java_import 'org.bouncycastle.openssl.PEMEncryptedKeyPair'
+  java_import 'org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter'
+  java_import 'org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder'
+  java_import 'org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder'
+  java_import 'org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo'
+
   def self.builder
     new
   end
@@ -74,14 +71,14 @@ class SslOptions
     return nil unless @ssl_enabled
 
     # create certificate object
-    cf = CertificateFactory.getInstance("X.509")
+    cf = java.security.cert.CertificateFactory.getInstance("X.509")
     cert_chain = []
     fetch_certificates_from_file(@ssl_cert_path, cf) do |cert|
       cert_chain << cert
     end
 
     # convert key from pkcs1 to pkcs8 and get PrivateKey object
-    pem_parser = PEMParser.new(FileReader.new(@ssl_key_path))
+    pem_parser = PEMParser.new(java.io.FileReader.new(@ssl_key_path))
     java.security.Security.addProvider(BouncyCastleProvider.new)
     converter = JcaPEMKeyConverter.new
     case obj = pem_parser.readObject
