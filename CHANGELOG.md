@@ -1,3 +1,6 @@
+## 6.0.4
+  - Refactor: scope java_import to avoid polluting [#152](https://github.com/logstash-plugins/logstash-input-tcp/pull/152)
+
 ## 6.0.3
   - Skip empty lines while reading certificate files [#144](https://github.com/logstash-plugins/logstash-input-tcp/issues/144)
 
@@ -21,7 +24,7 @@
 
 ## 5.0.9
   - New configuration option to set TCP keep-alive [#16](https://github.com/logstash-plugins/logstash-input-tcp/pull/116)
-  
+
 ## 5.0.8
   - Reorder shut down of the two event loops to prevent RejectedExecutionException
 
@@ -57,7 +60,7 @@
 ## 4.2.2
   - Fixed regression causing incoming connection host ips being accidentally resolved to hostnames
   - Implemented plain socket server in a non-blocking way improving performance and fixing issues for use cases with a large number of concurrent connections
-  
+
 ## 4.2.1
   - Version yanked from RubyGems for accidental behaviour change causing unwanted reverse lookups on connections
 
@@ -87,7 +90,7 @@
  - New dependency requirements for logstash-core for the 5.0 release
 ## 3.0.2
  - Fixed a bug where previous connection would accidentally be closed when accepting new socket connection
- - Fixed an issue with log message which used a closed socket's peer address 
+ - Fixed an issue with log message which used a closed socket's peer address
 
 ## 3.0.1
  - properly convert sslsubject to string before assigning to event field, added specs, see https://github.com/logstash-plugins/logstash-input-tcp/pull/38
