@@ -36,7 +36,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+    classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
   }
 }
 
@@ -57,10 +57,12 @@ dependencies {
   compile 'org.apache.logging.log4j:log4j-core:2.9.1'
 }
 
-task vendor(dependsOn: shadowJar) << {
-  String vendorPathPrefix = "vendor/jar-dependencies"
-  String projectGroupPath = project.group.replaceAll('\\.', '/')
-  File projectJarFile = file("${vendorPathPrefix}/${projectGroupPath}/${project.name}/${project.version}/${project.name}-${project.version}.jar")
-  projectJarFile.mkdirs()
-  Files.copy(file("$buildDir/libs/${project.name}-${project.version}.jar").toPath(), projectJarFile.toPath(), REPLACE_EXISTING)
+task vendor(dependsOn: shadowJar) {
+  doLast {
+    String vendorPathPrefix = "vendor/jar-dependencies"
+    String projectGroupPath = project.group.replaceAll('\\.', '/')
+    File projectJarFile = file("${vendorPathPrefix}/${projectGroupPath}/${project.name}/${project.version}/${project.name}-${project.version}.jar")
+    projectJarFile.mkdirs()
+    Files.copy(file("$buildDir/libs/${project.name}-${project.version}.jar").toPath(), projectJarFile.toPath(), REPLACE_EXISTING)
+  }
 }
