@@ -1,3 +1,6 @@
+## 6.0.5
+  - Fix potential startup crash that could occur when multiple instances of this plugin were started simultaneously [#155](https://github.com/logstash-plugins/logstash-input-tcp/pull/155)
+
 ## 6.0.4
   - Refactor: scope java_import to avoid polluting [#152](https://github.com/logstash-plugins/logstash-input-tcp/pull/152)
 

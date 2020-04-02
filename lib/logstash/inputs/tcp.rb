@@ -119,6 +119,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   PROXY_PORT_FIELD = "proxy_port".freeze
   SSLSUBJECT_FIELD = "sslsubject".freeze
 
+  PLUGIN_GLOBAL_MUTEX = Mutex.new
+  private_constant :PLUGIN_GLOBAL_MUTEX
+
   def initialize(*args)
     super(*args)
 
@@ -141,8 +144,15 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     if server?
       ssl_context = get_ssl_context(SslOptions)
 
+      # RubyObject#to_java is not threadsafe, and we cannot guarantee
+      # that ours is the only reference to the underlying logger, which
+      # is memoized at a class level.
+      log4j_logger = PLUGIN_GLOBAL_MUTEX.synchronize do
+        @logger.to_java(org.apache.logging.log4j.Logger)
+      end
+
       @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
-                            ssl_context, @logger.to_java(org.apache.logging.log4j.Logger))
+                            ssl_context, log4j_logger)
     end
   end
 
