@@ -12,6 +12,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.logging.log4j.Logger;
@@ -201,7 +203,17 @@ public final class InputLoop implements Runnable, Closeable {
 
             @Override
             public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-                decoder.decode(ctx.channel().remoteAddress(), (ByteBuf) msg);
+                String sslPeerCertSubject = "";
+                SslHandler sslhandler = (SslHandler) ctx.channel().pipeline().get(SslHandler.class);
+                if (sslhandler != null) {
+                    try {
+                        sslPeerCertSubject = sslhandler.engine().getSession().getPeerCertificateChain()[0].getSubjectDN().getName();
+                    } catch(SSLPeerUnverifiedException e) {
+                    } catch(Exception e) {
+                        logger.error("Error when getting peer SSL certificate: " + e);
+                    }
+                }
+                decoder.decode(ctx.channel().remoteAddress(), (ByteBuf) msg, sslPeerCertSubject);
             }
 
             @Override
