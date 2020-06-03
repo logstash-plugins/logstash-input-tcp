@@ -1,4 +1,5 @@
 require 'openssl'
+require "logstash/util/loggable"
 
 # Simulate a normal SslOptions builder:
 #
@@ -12,10 +13,12 @@ require 'openssl'
 #       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
 #       .build.toSslContext()
 class SslOptions
+  include LogStash::Util::Loggable
 
   java_import 'io.netty.handler.ssl.ClientAuth'
   java_import 'io.netty.handler.ssl.SslContextBuilder'
   java_import 'java.security.cert.X509Certificate'
+  java_import 'javax.crypto.Cipher'
   java_import 'org.bouncycastle.asn1.pkcs.PrivateKeyInfo'
   java_import 'org.bouncycastle.jce.provider.BouncyCastleProvider'
   java_import 'org.bouncycastle.openssl.PEMKeyPair'
@@ -70,6 +73,8 @@ class SslOptions
   def toSslContext
     return nil unless @ssl_enabled
 
+    # Check key strength
+    logger.warn("JCE Unlimited Strength Jurisdiction Policy not installed - max key length is 128 bits") unless Cipher.getMaxAllowedKeyLength("AES") > 128
     # create certificate object
     cf = java.security.cert.CertificateFactory.getInstance("X.509")
     cert_chain = []

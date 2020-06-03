@@ -341,8 +341,7 @@ describe LogStash::Inputs::Tcp do
             "port" => port,
             "ssl_enable" => true,
             "ssl_cert" => certificate_file.path,
-            "ssl_key" => key_file.path,
-            "ssl_extra_chain_certs" => certificate_file.path
+            "ssl_key" => key_file.path
           }
         end
 
@@ -368,7 +367,6 @@ describe LogStash::Inputs::Tcp do
             File.unlink(certificate_file.path)
             File.unlink(key_file.path)
           end
-
         end
 
         context "with pkcs#8 keys" do
