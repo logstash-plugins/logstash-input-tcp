@@ -186,7 +186,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
-                    proxy_port, tbuf, socket, ssl_subject)
+                    proxy_port, tbuf, ssl_subject)
     codec.decode(tbuf) do |event|
       if @proxy_protocol
         event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
@@ -195,13 +195,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       if ssl_subject
         event.set(SSLSUBJECT_FIELD, ssl_subject)
       end
-      enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
+      enqueue_decorated(event, client_ip_address, client_address, client_port)
     end
   end
 
-  def flush_codec(codec, client_ip_address, client_address, client_port, socket)
+  def flush_codec(codec, client_ip_address, client_address, client_port)
     codec.flush do |event|
-      enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
+      enqueue_decorated(event, client_ip_address, client_address, client_port)
     end
   end
 
@@ -221,13 +221,14 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     client_socket.close rescue nil
   end
 
+  # only called in client mode
   def handle_socket(socket)
     client_address = socket.peeraddr[3]
     client_ip_address = socket.peeraddr[2]
     client_port = socket.peeraddr[1]
 
     # Client mode sslsubject extraction, server mode happens in DecoderImpl#decode
-    ssl_subject = socket.peer_cert.subject.to_s if !server? && @ssl_enable && @ssl_verify
+    ssl_subject = socket.peer_cert.subject.to_s if @ssl_enable && @ssl_verify
     peer = "#{client_address}:#{client_port}"
     first_read = true
     codec = @codec.clone
@@ -251,7 +252,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         end
       end
       decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
-                    proxy_port, tbuf, socket, ssl_subject)
+                    proxy_port, tbuf, ssl_subject)
     end
   rescue EOFError
     @logger.debug? && @logger.debug("Connection closed", :client => peer)
@@ -267,10 +268,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
-    flush_codec(codec, client_ip_address, client_address, client_port, socket)
+    flush_codec(codec, client_ip_address, client_address, client_port)
   end
 
-  def enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
+  def enqueue_decorated(event, client_ip_address, client_address, client_port)
     event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
     event.set(HOST_IP_FIELD, client_ip_address) unless event.get(HOST_IP_FIELD)
     event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)

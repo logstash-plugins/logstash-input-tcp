@@ -24,10 +24,10 @@ class DecoderImpl
       session = ctx.channel().pipeline().get("ssl-handler").engine().getSession()
       sslsubject = session.getPeerPrincipal().getName()
       @tcp.decode_buffer(@ip_address, @address, @port, @codec,
-                         @proxy_address, @proxy_port, tbuf, nil, sslsubject)
+                         @proxy_address, @proxy_port, tbuf, sslsubject)
     else
       @tcp.decode_buffer(@ip_address, @address, @port, @codec,
-                         @proxy_address, @proxy_port, tbuf, nil, nil)
+                         @proxy_address, @proxy_port, tbuf, nil)
     end
   end
 
@@ -36,7 +36,7 @@ class DecoderImpl
   end
 
   def flush
-    @tcp.flush_codec(@codec, @ip_address, @address, @port, nil)
+    @tcp.flush_codec(@codec, @ip_address, @address, @port)
   end
 
   private
