@@ -186,11 +186,14 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
-                    proxy_port, tbuf, socket)
+                    proxy_port, tbuf, socket, ssl_subject)
     codec.decode(tbuf) do |event|
       if @proxy_protocol
         event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
         event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
+      end
+      if ssl_subject
+        event.set(SSLSUBJECT_FIELD, ssl_subject)
       end
       enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
     end

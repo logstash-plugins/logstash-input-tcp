@@ -11,7 +11,8 @@ class DecoderImpl
     @first_read = true
   end
 
-  def decode(channel_addr, data)
+  def decode(ctx, data)
+    channel_addr = ctx.channel().remoteAddress()
     bytes = Java::byte[data.readableBytes].new
     data.getBytes(0, bytes)
     data.release
@@ -19,8 +20,15 @@ class DecoderImpl
     if @first_read
       tbuf = init_first_read(channel_addr, tbuf)
     end
-    @tcp.decode_buffer(@ip_address, @address, @port, @codec,
-                       @proxy_address, @proxy_port, tbuf, nil)
+    if @tcp.ssl_enable && @tcp.ssl_verify
+      session = ctx.channel().pipeline().get("ssl-handler").engine().getSession()
+      sslsubject = session.getPeerPrincipal().getName()
+      @tcp.decode_buffer(@ip_address, @address, @port, @codec,
+                         @proxy_address, @proxy_port, tbuf, nil, sslsubject)
+    else
+      @tcp.decode_buffer(@ip_address, @address, @port, @codec,
+                         @proxy_address, @proxy_port, tbuf, nil, nil)
+    end
   end
 
   def copy

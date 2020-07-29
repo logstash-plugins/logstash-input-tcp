@@ -519,6 +519,31 @@ describe LogStash::Inputs::Tcp do
               expect(result.first.get("message")).to eq(message)
             end
           end
+          context "with a regular TLS setup" do
+            let(:config) do
+              {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_key" => chain_of_certificates[:b_key].path,
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+                "ssl_verify" => true
+              }
+            end
+            it "should be able to extract the sslsubject from connections" do
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(result.first.get("sslsubject")).to eq("CN=RubyAA_Cert,DC=ruby-lang,DC=org")
+            end
+          end
         end
 
         context "with a poorly-behaving client" do
