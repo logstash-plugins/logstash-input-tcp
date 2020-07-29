@@ -225,6 +225,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     client_address = socket.peeraddr[3]
     client_ip_address = socket.peeraddr[2]
     client_port = socket.peeraddr[1]
+
+    # Client mode sslsubject extraction, server mode happens in DecoderImpl#decode
+    ssl_subject = socket.peer_cert.subject.to_s if !server? && @ssl_enable && @ssl_verify
     peer = "#{client_address}:#{client_port}"
     first_read = true
     codec = @codec.clone
@@ -248,7 +251,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         end
       end
       decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
-                    proxy_port, tbuf, socket)
+                    proxy_port, tbuf, socket, ssl_subject)
     end
   rescue EOFError
     @logger.debug? && @logger.debug("Connection closed", :client => peer)
@@ -271,7 +274,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
     event.set(HOST_IP_FIELD, client_ip_address) unless event.get(HOST_IP_FIELD)
     event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-    event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if socket && @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
     decorate(event)
     @output_queue << event
   end
