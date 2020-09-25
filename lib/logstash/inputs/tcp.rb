@@ -122,12 +122,21 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   PLUGIN_GLOBAL_MUTEX = Mutex.new
   private_constant :PLUGIN_GLOBAL_MUTEX
 
+  # Monkey patch TCPSocket and SSLSocket to include socket peer
+  # @private
+  def self.patch_socket_peer!
+    unless TCPSocket < ::LogStash::Util::SocketPeer
+      TCPSocket.send :include, ::LogStash::Util::SocketPeer
+    end
+    unless OpenSSL::SSL::SSLSocket < ::LogStash::Util::SocketPeer
+      OpenSSL::SSL::SSLSocket.send :include, ::LogStash::Util::SocketPeer
+    end
+  end
+
   def initialize(*args)
     super(*args)
 
-    # monkey patch TCPSocket and SSLSocket to include socket peer
-    TCPSocket.module_eval{include ::LogStash::Util::SocketPeer}
-    OpenSSL::SSL::SSLSocket.module_eval{include ::LogStash::Util::SocketPeer}
+    self.class.patch_socket_peer!
 
     # threadsafe socket bookkeeping
     @server_socket = nil
