@@ -134,6 +134,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @client_socket = nil
     @connection_sockets = {}
     @socket_mutex = Mutex.new
+    @metric = @input.metric
+    @peak_connection_count = Concurrent::AtomicFixnum.new(0)
 
     @ssl_context = nil
   end
@@ -353,12 +355,25 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def add_connection_socket(socket)
-    @socket_mutex.synchronize{@connection_sockets[socket] = true}
+    @socket_mutex.synchronize{@connection_sockets[socket] = true; increment_connection_count}
     socket
   end
 
   def delete_connection_socket(socket)
-    @socket_mutex.synchronize{@connection_sockets.delete(socket)}
+    @socket_mutex.synchronize{@connection_sockets.delete(socket); decrement_connection_count}
+  end
+  
+  def increment_connection_count
+    current_connection_count = @connection_sockets.size
+    @metric.gauge(:current_connections, current_connection_count)
+    if current_connection_count > @peak_connection_count.value
+      @peak_connection_count.value = current_connection_count
+      @metric.gauge(:peak_connections, @peak_connection_count.value)
+    end
+  end
+
+  def decrement_connection_count
+    @metric.gauge(:current_connections, @connection_sockets.size)
   end
 
   def connection_sockets
