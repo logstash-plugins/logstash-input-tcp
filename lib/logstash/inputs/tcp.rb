@@ -251,12 +251,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   rescue Errno::ECONNRESET
     @logger.debug? && @logger.debug("Connection reset by peer", :client => peer)
   rescue OpenSSL::SSL::SSLError => e
-    # Fixes issue #23
-    @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
-    socket.close rescue nil
+    @logger.error("SSL error", :client => peer, :message => e.message, :exception => e.class, :backtrace => e.backtrace)
   rescue => e
     # if plugin is stopping, don't bother logging it as an error
-    !stop? && @logger.error("An error occurred. Closing connection", :client => peer, :exception => e, :backtrace => e.backtrace)
+    !stop? && @logger.error("An error occurred, closing connection", :client => peer, :message => e.message, :exception => e.class, :backtrace => e.backtrace)
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
@@ -292,7 +290,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
     rescue => e
-      @logger.error("Could not inititalize SSL context", :exception => e, :backtrace => e.backtrace)
+      @logger.error("Could not inititalize SSL context", :message => e.message, :exception => e.class, :backtrace => e.backtrace)
       raise e
     end
 
