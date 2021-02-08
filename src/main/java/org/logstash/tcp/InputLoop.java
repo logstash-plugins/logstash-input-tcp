@@ -18,6 +18,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
+import java.io.IOException;
 
 /**
  * Plain TCP Server Implementation.
@@ -197,8 +198,27 @@ public final class InputLoop implements Runnable, Closeable {
 
             @Override
             public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
-                logger.error("Error in Netty pipeline: " + cause);
+                final String channelId = ctx.channel().id().asShortText();
+                if (silentException(cause)) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(channelId + ':', cause);
+                    } else {
+                        logger.info("{}: {}", channelId, cause.getMessage());
+                    }
+                } else {
+                    logger.error(channelId + ": Exception caught:", cause);
+                }
                 ctx.close();
+            }
+
+            private boolean silentException(final Throwable ex) {
+                if (ex instanceof IOException) {
+                    final String message = ex.getMessage();
+                    if ("Connection reset by peer".equals(message)) {
+                        return true;
+                    }
+                }
+                return false;
             }
         }
     }
