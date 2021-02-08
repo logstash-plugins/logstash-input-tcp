@@ -119,9 +119,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   PROXY_PORT_FIELD = "proxy_port".freeze
   SSLSUBJECT_FIELD = "sslsubject".freeze
 
-  PLUGIN_GLOBAL_MUTEX = Mutex.new
-  private_constant :PLUGIN_GLOBAL_MUTEX
-
   # Monkey patch TCPSocket and SSLSocket to include socket peer
   # @private
   def self.patch_socket_peer!
@@ -153,22 +150,15 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     if server?
       ssl_context = get_ssl_context(SslOptions)
 
-      # RubyObject#to_java is not threadsafe, and we cannot guarantee
-      # that ours is the only reference to the underlying logger, which
-      # is memoized at a class level.
-      log4j_logger = PLUGIN_GLOBAL_MUTEX.synchronize do
-        @logger.to_java(org.apache.logging.log4j.Logger)
-      end
 
-      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
-                            ssl_context, log4j_logger)
+      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, ssl_context)
     end
   end
 
   def run(output_queue)
     @output_queue = output_queue
     if server?
-      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
+      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => @ssl_enable)
       @loop.run
     else
       run_client()
