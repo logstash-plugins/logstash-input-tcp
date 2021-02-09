@@ -38,8 +38,8 @@ class DecoderImpl
       pp_info = pp_hdr.split(/\s/)
       # PROXY proto clientip proxyip clientport proxyport
       if pp_info[0] != "PROXY"
-        @tcp.logger.error("invalid proxy protocol header label", :hdr => pp_hdr)
-        raise IOError
+        @tcp.logger.error("Invalid proxy protocol header label", :header => pp_hdr)
+        raise IOError.new("Invalid proxy protocol header label #{pp_hdr.inspect}")
       else
         @proxy_address = pp_info[3]
         @proxy_port = pp_info[5]

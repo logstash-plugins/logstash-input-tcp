@@ -2,7 +2,7 @@ package org.logstash.tcp;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -14,14 +14,20 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 
 /**
  * Plain TCP Server Implementation.
  */
 public final class InputLoop implements Runnable, Closeable {
+
+    // historically this class was passing around the plugin's logger
+    private static final Logger logger = LogManager.getLogger("logstash.inputs.tcp");
 
     /**
      * Netty Boss Group.
@@ -37,11 +43,6 @@ public final class InputLoop implements Runnable, Closeable {
      * The Server Bootstrap
      */
     private final ServerBootstrap serverBootstrap;
-
-    /**
-     * Reference to the logger.
-     */
-    private final Logger logger;
 
     /**
      * SSL configuration.
@@ -66,9 +67,7 @@ public final class InputLoop implements Runnable, Closeable {
      * @param keepAlive set to true to instruct the socket to issue TCP keep alive
      */
     public InputLoop(final String host, final int port, final Decoder decoder, final boolean keepAlive,
-                     final SslContext sslContext, final Logger logger) {
-
-        this.logger = logger;
+                     final SslContext sslContext) {
         this.sslContext = sslContext;
         this.host = host;
         this.port = port;
@@ -78,7 +77,7 @@ public final class InputLoop implements Runnable, Closeable {
             .channel(NioServerSocketChannel.class)
             .option(ChannelOption.SO_BACKLOG, 1024)
             .childOption(ChannelOption.SO_KEEPALIVE, keepAlive)
-            .childHandler(new InputLoop.InputHandler(decoder, sslContext, logger));
+            .childHandler(new InputLoop.InputHandler(decoder, sslContext));
     }
 
     @Override
@@ -120,18 +119,12 @@ public final class InputLoop implements Runnable, Closeable {
         private final SslContext sslContext;
 
         /**
-         * Reference to the logger.
-         */
-        private final Logger logger;
-
-        /**
          * Ctor.
          * @param decoder {@link Decoder} provided by JRuby.
          */
-        InputHandler(final Decoder decoder, final SslContext sslContext, Logger logger) {
+        InputHandler(final Decoder decoder, final SslContext sslContext) {
             this.decoder = decoder;
             this.sslContext = sslContext;
-            this.logger = logger;
         }
 
         @Override
@@ -145,6 +138,10 @@ public final class InputLoop implements Runnable, Closeable {
 
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
             channel.closeFuture().addListener(new FlushOnCloseListener(localCopy));
+
+            if (logger.isDebugEnabled()) {
+                logger.debug(remoteChannelInfo(channel) + ": initialized channel");
+            }
         }
 
         @Override
@@ -206,9 +203,36 @@ public final class InputLoop implements Runnable, Closeable {
 
             @Override
             public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
-                logger.error("Error in Netty pipeline: " + cause);
+                final String channelInfo = remoteChannelInfo(ctx.channel());
+                if (silentException(cause)) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(channelInfo + ": closing", cause);
+                    } else {
+                        logger.info("{}: closing ({})", channelInfo, cause.getMessage());
+                    }
+                } else {
+                    logger.error(channelInfo + ": closing due:", cause);
+                }
                 ctx.close();
             }
+
+            private boolean silentException(final Throwable ex) {
+                if (ex instanceof IOException) {
+                    final String message = ex.getMessage();
+                    if ("Connection reset by peer".equals(message)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         }
+    }
+
+    private static String remoteChannelInfo(final Channel channel) {
+        final InetSocketAddress remote = ((InetSocketAddress) channel.remoteAddress());
+        if (remote != null) {
+            return remote.getAddress() + ":" + remote.getPort();
+        }
+        return null;
     }
 }

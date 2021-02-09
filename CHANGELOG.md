@@ -1,3 +1,8 @@
+## 6.0.7
+  - Fix: reduce error logging (to info level) on connection resets [#168](https://github.com/logstash-plugins/logstash-input-tcp/pull/168)
+  - Refactor: only patch Socket classes once (on first input)
+  - Refactor: use a proper log4j logger (in Java to avoid surprises when unwrapping `LogStash::Logging::Logger`)
+
 ## 6.0.6
   - Updated Netty dependencies. Additionally, this release removes the dependency on `tcnative` +
     `boringssl`, using JVM supplied ciphers instead. This may result in fewer ciphers being available if the JCE

@@ -119,15 +119,21 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   PROXY_PORT_FIELD = "proxy_port".freeze
   SSLSUBJECT_FIELD = "sslsubject".freeze
 
-  PLUGIN_GLOBAL_MUTEX = Mutex.new
-  private_constant :PLUGIN_GLOBAL_MUTEX
+  # Monkey patch TCPSocket and SSLSocket to include socket peer
+  # @private
+  def self.patch_socket_peer!
+    unless TCPSocket < ::LogStash::Util::SocketPeer
+      TCPSocket.send :include, ::LogStash::Util::SocketPeer
+    end
+    unless OpenSSL::SSL::SSLSocket < ::LogStash::Util::SocketPeer
+      OpenSSL::SSL::SSLSocket.send :include, ::LogStash::Util::SocketPeer
+    end
+  end
 
   def initialize(*args)
     super(*args)
 
-    # monkey patch TCPSocket and SSLSocket to include socket peer
-    TCPSocket.module_eval{include ::LogStash::Util::SocketPeer}
-    OpenSSL::SSL::SSLSocket.module_eval{include ::LogStash::Util::SocketPeer}
+    self.class.patch_socket_peer!
 
     # threadsafe socket bookkeeping
     @server_socket = nil
@@ -144,22 +150,15 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     if server?
       ssl_context = get_ssl_context(SslOptions)
 
-      # RubyObject#to_java is not threadsafe, and we cannot guarantee
-      # that ours is the only reference to the underlying logger, which
-      # is memoized at a class level.
-      log4j_logger = PLUGIN_GLOBAL_MUTEX.synchronize do
-        @logger.to_java(org.apache.logging.log4j.Logger)
-      end
 
-      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive,
-                            ssl_context, log4j_logger)
+      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, ssl_context)
     end
   end
 
   def run(output_queue)
     @output_queue = output_queue
     if server?
-      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => "#{@ssl_enable}")
+      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enable => @ssl_enable)
       @loop.run
     else
       run_client()
@@ -252,12 +251,10 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   rescue Errno::ECONNRESET
     @logger.debug? && @logger.debug("Connection reset by peer", :client => peer)
   rescue OpenSSL::SSL::SSLError => e
-    # Fixes issue #23
-    @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
-    socket.close rescue nil
+    @logger.error("SSL error", :client => peer, :message => e.message, :exception => e.class, :backtrace => e.backtrace)
   rescue => e
     # if plugin is stopping, don't bother logging it as an error
-    !stop? && @logger.error("An error occurred. Closing connection", :client => peer, :exception => e, :backtrace => e.backtrace)
+    !stop? && @logger.error("An error occurred, closing connection", :client => peer, :message => e.message, :exception => e.class, :backtrace => e.backtrace)
   ensure
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
@@ -293,7 +290,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
     rescue => e
-      @logger.error("Could not inititalize SSL context", :exception => e, :backtrace => e.backtrace)
+      @logger.error("Could not inititalize SSL context", :message => e.message, :exception => e.class, :backtrace => e.backtrace)
       raise e
     end
 
