@@ -2,7 +2,7 @@ package org.logstash.tcp;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 
 /**
  * Plain TCP Server Implementation.
@@ -137,6 +138,10 @@ public final class InputLoop implements Runnable, Closeable {
 
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
             channel.closeFuture().addListener(new FlushOnCloseListener(localCopy));
+
+            if (logger.isDebugEnabled()) {
+                logger.debug(remoteChannelInfo(channel) + ": initialized channel");
+            }
         }
 
         @Override
@@ -198,15 +203,15 @@ public final class InputLoop implements Runnable, Closeable {
 
             @Override
             public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
-                final String channelId = ctx.channel().id().asShortText();
+                final String channelInfo = remoteChannelInfo(ctx.channel());
                 if (silentException(cause)) {
                     if (logger.isDebugEnabled()) {
-                        logger.debug(channelId + ':', cause);
+                        logger.debug(channelInfo + ": closing", cause);
                     } else {
-                        logger.info("{}: {}", channelId, cause.getMessage());
+                        logger.info("{}: closing ({})", channelInfo, cause.getMessage());
                     }
                 } else {
-                    logger.error(channelId + ": Exception caught:", cause);
+                    logger.error(channelInfo + ": closing due:", cause);
                 }
                 ctx.close();
             }
@@ -221,5 +226,13 @@ public final class InputLoop implements Runnable, Closeable {
                 return false;
             }
         }
+    }
+
+    private static String remoteChannelInfo(final Channel channel) {
+        final InetSocketAddress remote = ((InetSocketAddress) channel.remoteAddress());
+        if (remote != null) {
+            return remote.getAddress() + ":" + remote.getPort();
+        }
+        return null;
     }
 }
