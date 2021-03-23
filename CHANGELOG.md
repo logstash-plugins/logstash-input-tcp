@@ -1,3 +1,6 @@
+## 6.0.8
+  - [DOC] better description for `tcp_keep_alive` option [#169](https://github.com/logstash-plugins/logstash-input-tcp/pull/169)
+
 ## 6.0.7
   - Fix: reduce error logging (to info level) on connection resets [#168](https://github.com/logstash-plugins/logstash-input-tcp/pull/168)
   - Refactor: only patch Socket classes once (on first input)
