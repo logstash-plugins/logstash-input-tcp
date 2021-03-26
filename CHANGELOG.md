@@ -1,3 +1,6 @@
+## 6.0.9
+  - [DOC] Reorder options alphabetically [#171](https://github.com/logstash-plugins/logstash-input-tcp/pull/171)
+
 ## 6.0.8
   - [DOC] better description for `tcp_keep_alive` option [#169](https://github.com/logstash-plugins/logstash-input-tcp/pull/169)
 
