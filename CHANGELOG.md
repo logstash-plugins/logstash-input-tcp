@@ -1,3 +1,6 @@
+## 6.0.10
+  - bumping dependency commons-io [#174](https://github.com/logstash-plugins/logstash-input-tcp/pull/174)
+
 ## 6.0.9
   - [DOC] Reorder options alphabetically [#171](https://github.com/logstash-plugins/logstash-input-tcp/pull/171)
 
