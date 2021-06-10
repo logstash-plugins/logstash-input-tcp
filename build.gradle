@@ -25,7 +25,7 @@ apply plugin: "distribution"
 apply plugin: "idea"
 
 group "org.logstash.inputs"
-version Files.readAllLines(Paths.get("version")).first()
+version rootProject.file('version').text.trim()
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 
