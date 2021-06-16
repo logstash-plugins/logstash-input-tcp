@@ -169,12 +169,14 @@ public class SslContextBuilder {
             while (fis.available() > 0) {
                 try {
                     certificates.add( factory.generateCertificate(fis) );
-                } catch (CertificateException ex) {
-                    Throwable cause = ex.getCause();
+                } catch (CertificateException e) {
+                    logger.debug("Failed to read certificate", e);
+                    Throwable cause = e.getCause();
                     if (cause != null && "Empty input".equals(cause.getMessage())) {
+                        logger.debug("Detected empty input while reading certificate (" + cause + ")");
                         continue;
                     }
-                    throw ex;
+                    throw e;
                 }
             }
         } finally {
