@@ -1,5 +1,6 @@
 ## 6.1.0
   - Feat: improve SSL error logging/unwrapping [#178](https://github.com/logstash-plugins/logstash-input-tcp/pull/178)
+  - Fix: the plugin will no longer have a side effect of adding the Bouncy-Castle security provider at runtime  
 
 ## 6.0.10
   - bumping dependency commons-io [#174](https://github.com/logstash-plugins/logstash-input-tcp/pull/174)
