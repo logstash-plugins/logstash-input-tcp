@@ -99,6 +99,10 @@ public class SslContextBuilder {
         // create certificate object
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
         List<Certificate> certChain = getCertificatesFromFile(certPath, certFactory);
+        if (certChain.isEmpty()) {
+            logger.warn("Failed to read certificate from path: {}", certPath);
+            throw new IllegalArgumentException("failed to read certificate from ssl_cert path");
+        }
 
         // convert key from pkcs1 to pkcs8 and get PrivateKey object
         final PrivateKey privateKey;
