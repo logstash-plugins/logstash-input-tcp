@@ -6,7 +6,6 @@ require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
 require "logstash/inputs/tcp/decoder_impl"
-require "logstash/inputs/tcp/compat_ssl_options"
 
 require "socket"
 require "openssl"
@@ -61,7 +60,8 @@ require "openssl"
 #     }
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
-  java_import org.logstash.tcp.InputLoop
+  java_import 'org.logstash.tcp.InputLoop'
+  java_import 'org.logstash.tcp.SslContextBuilder'
 
   config_name "tcp"
 
@@ -103,7 +103,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Useful when the CA chain is not necessary in the system store.
   config :ssl_extra_chain_certs, :validate => :array, :default => []
 
-  # Validate client certificates against these authorities. You can define multiple files or paths. All the certificates will be read and added to the trust store.
+  # Validate client certificates against these authorities. You can define multiple files or paths.
+  # All the certificates will be read and added to the trust store.
   config :ssl_certificate_authorities, :validate => :array, :default => []
 
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
@@ -148,10 +149,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     fix_streaming_codecs
 
     if server?
-      ssl_context = get_ssl_context(SslOptions)
-
-
-      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, ssl_context)
+      @loop = InputLoop.new(@host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
     end
   end
 
@@ -320,7 +318,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     socket
   rescue OpenSSL::SSL::SSLError => e
-    @logger.error("SSL Error", :exception => e, :backtrace => e.backtrace)
+    @logger.error("SSL Error", :message => e.message, :exception => e.class, :backtrace => e.backtrace)
     # catch all rescue nil on close to discard any close errors or invalid socket
     socket.close rescue nil
     sleep(1) # prevent hammering peer
@@ -362,15 +360,33 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @socket_mutex.synchronize{@connection_sockets.keys.dup}
   end
 
-  def get_ssl_context(options_class)
-    ssl_context = options_class.builder
-      .set_is_ssl_enabled(@ssl_enable)
+  def java_ssl_context
+    SslContextBuilder.new
+      .set_ssl_enabled(@ssl_enable)
       .set_should_verify(@ssl_verify)
       .set_ssl_cert(@ssl_cert)
       .set_ssl_key(@ssl_key)
-      .set_ssl_key_passphrase(@ssl_key_passphrase.value)
+      .set_ssl_key_password(@ssl_key_passphrase.value)
       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
-      .build.toSslContext()
+      .build_context
+  rescue java.lang.IllegalArgumentException => e
+    @logger.error("SSL configuration invalid", error_details(e))
+    raise LogStash::ConfigurationError, e
+  rescue java.lang.Exception => e
+    @logger.error("SSL configuration failed", error_details(e, true))
+    raise e
   end
+
+  def error_details(e, trace = false)
+    error_details = { :exception => e.class, :message => e.message }
+    error_details[:backtrace] = e.backtrace if trace || @logger.debug?
+    cause = e.cause
+    if cause && e != cause
+      error_details[:cause] = { :exception => cause.class, :message => cause.message }
+      error_details[:cause][:backtrace] = cause.backtrace if trace || @logger.debug?
+    end
+    error_details
+  end
+
 end
