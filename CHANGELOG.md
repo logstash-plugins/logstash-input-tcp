@@ -1,3 +1,6 @@
+## 6.1.1
+ - Changed jar dependencies to reflect newer versions [#179](https://github.com/logstash-plugins/logstash-input-http/pull/179)
+
 ## 6.1.0
   - Feat: improve SSL error logging/unwrapping [#178](https://github.com/logstash-plugins/logstash-input-tcp/pull/178)
   - Fix: the plugin will no longer have a side effect of adding the Bouncy-Castle security provider at runtime  
