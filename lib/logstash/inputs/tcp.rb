@@ -114,13 +114,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Option to allow users to avoid DNS Reverse Lookup.
   config :dns_reverse_lookup_enabled, :validate => :boolean, :default => true
 
-  HOST_FIELD = "host".freeze
-  HOST_IP_FIELD = "[@metadata][ip_address]".freeze
-  PORT_FIELD = "port".freeze
-  PROXY_HOST_FIELD = "proxy_host".freeze
-  PROXY_PORT_FIELD = "proxy_port".freeze
-  SSLSUBJECT_FIELD = "sslsubject".freeze
-
   # Monkey patch TCPSocket and SSLSocket to include socket peer
   # @private
   def self.patch_socket_peer!
@@ -134,6 +127,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def initialize(*args)
     super(*args)
+
+    setup_fields!
 
     self.class.patch_socket_peer!
 
@@ -187,8 +182,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
                     proxy_port, tbuf, socket)
     codec.decode(tbuf) do |event|
       if @proxy_protocol
-        event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
-        event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
+        event.set(@field_proxy_host, proxy_address) unless event.get(@field_proxy_host)
+        event.set(@field_proxy_port, proxy_port) unless event.get(@field_proxy_port)
       end
       enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
     end
@@ -261,12 +256,21 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
-    event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
-    event.set(HOST_IP_FIELD, client_ip_address) unless event.get(HOST_IP_FIELD)
-    event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-    event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if socket && @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
+    event.set(@field_host, client_address) unless event.get(@field_host)
+    event.set(@field_host_ip, client_ip_address) unless event.get(@field_host_ip)
+    event.set(@field_port, client_port) unless event.get(@field_port)
+    event.set(@field_sslsubject, socket.peer_cert.subject.to_s) if socket && @ssl_enable && @ssl_verify && event.get(@field_sslsubject).nil?
     decorate(event)
     @output_queue << event
+  end
+
+  def setup_fields!
+    @field_host = 'host'.freeze
+    @field_host_ip = "[@metadata][ip_address]".freeze
+    @field_port = "port".freeze
+    @field_proxy_host = "proxy_host".freeze
+    @field_proxy_port = "proxy_port".freeze
+    @field_sslsubject = "sslsubject".freeze
   end
 
   def server?
