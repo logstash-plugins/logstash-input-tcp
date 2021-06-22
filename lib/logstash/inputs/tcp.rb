@@ -5,7 +5,6 @@ require "java"
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
-require "logstash/inputs/tcp/decoder_impl"
 
 require "socket"
 require "openssl"
@@ -62,6 +61,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   java_import 'org.logstash.tcp.InputLoop'
   java_import 'org.logstash.tcp.SslContextBuilder'
+
+  require_relative "tcp/decoder_impl"
 
   config_name "tcp"
 

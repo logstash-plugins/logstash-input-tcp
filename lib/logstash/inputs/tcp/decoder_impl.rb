@@ -1,7 +1,7 @@
 # encoding: utf-8
 require 'java'
 
-class DecoderImpl
+class LogStash::Inputs::Tcp::DecoderImpl
 
   include org.logstash.tcp.Decoder
 
@@ -24,7 +24,7 @@ class DecoderImpl
   end
 
   def copy
-    DecoderImpl.new(@codec.clone, @tcp)
+    self.class.new(@codec.clone, @tcp)
   end
 
   def flush
