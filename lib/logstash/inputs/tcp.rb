@@ -5,7 +5,7 @@ require "java"
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
-require "logstash/inputs/tcp/decoder_impl"
+require 'logstash/plugin_mixins/ecs_compatibility_support'
 
 require "socket"
 require "openssl"
@@ -63,6 +63,11 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   java_import 'org.logstash.tcp.InputLoop'
   java_import 'org.logstash.tcp.SslContextBuilder'
 
+  require_relative "tcp/decoder_impl"
+
+  # ecs_compatibility option, provided by Logstash core or the support adapter.
+  include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
+
   config_name "tcp"
 
   default :codec, "line"
@@ -113,13 +118,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Option to allow users to avoid DNS Reverse Lookup.
   config :dns_reverse_lookup_enabled, :validate => :boolean, :default => true
 
-  HOST_FIELD = "host".freeze
-  HOST_IP_FIELD = "[@metadata][ip_address]".freeze
-  PORT_FIELD = "port".freeze
-  PROXY_HOST_FIELD = "proxy_host".freeze
-  PROXY_PORT_FIELD = "proxy_port".freeze
-  SSLSUBJECT_FIELD = "sslsubject".freeze
-
   # Monkey patch TCPSocket and SSLSocket to include socket peer
   # @private
   def self.patch_socket_peer!
@@ -133,6 +131,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def initialize(*args)
     super(*args)
+
+    setup_fields!
 
     self.class.patch_socket_peer!
 
@@ -186,8 +186,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
                     proxy_port, tbuf, socket)
     codec.decode(tbuf) do |event|
       if @proxy_protocol
-        event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
-        event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
+        event.set(@field_proxy_host, proxy_address) unless event.get(@field_proxy_host)
+        event.set(@field_proxy_port, proxy_port) unless event.get(@field_proxy_port)
       end
       enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
     end
@@ -260,12 +260,22 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
-    event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
-    event.set(HOST_IP_FIELD, client_ip_address) unless event.get(HOST_IP_FIELD)
-    event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-    event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if socket && @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
+    event.set(@field_host, client_address) unless event.get(@field_host)
+    event.set(@field_host_ip, client_ip_address) unless event.get(@field_host_ip)
+    event.set(@field_port, client_port) unless event.get(@field_port)
+    event.set(@field_sslsubject, socket.peer_cert.subject.to_s) if socket && @ssl_enable && @ssl_verify && event.get(@field_sslsubject).nil?
     decorate(event)
     @output_queue << event
+  end
+
+  # setup the field names, with respect to ECS compatibility.
+  def setup_fields!
+    @field_host       = ecs_select[disabled: "host",                    v1: "[@metadata][input][tcp][source][name]"        ].freeze
+    @field_host_ip    = ecs_select[disabled: "[@metadata][ip_address]", v1: "[@metadata][input][tcp][source][ip]"          ].freeze
+    @field_port       = ecs_select[disabled: "port",                    v1: "[@metadata][input][tcp][source][port]"        ].freeze
+    @field_proxy_host = ecs_select[disabled: "proxy_host",              v1: "[@metadata][input][tcp][proxy][ip]"           ].freeze
+    @field_proxy_port = ecs_select[disabled: "proxy_port",              v1: "[@metadata][input][tcp][proxy][port]"         ].freeze
+    @field_sslsubject = ecs_select[disabled: "sslsubject",              v1: "[@metadata][input][tcp][tls][client][subject]"].freeze
   end
 
   def server?

@@ -15,9 +15,11 @@ java_import "io.netty.handler.ssl.util.SelfSignedCertificate"
 
 require_relative "../spec_helper"
 
+require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
+
 #Cabin::Channel.get(LogStash).subscribe(STDOUT)
 #Cabin::Channel.get(LogStash).level = :debug
-describe LogStash::Inputs::Tcp do
+describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
   def get_port
     begin
@@ -52,84 +54,159 @@ describe LogStash::Inputs::Tcp do
     end
   end
 
-  it "should read plain with unicode" do
-    event_count = 10
-    conf = <<-CONFIG
-      input {
-        tcp {
-          port => #{port}
+  ecs_compatibility_matrix(:disabled,:v1, :v8 => :v1) do |ecs_select|
+    before(:each) do
+      allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
+    end
+
+    it "should read plain with unicode" do
+      event_count = 10
+      conf = <<-CONFIG
+        input {
+          tcp {
+            port => #{port}
+          }
         }
-      }
-    CONFIG
+      CONFIG
 
-    host = 'localhost'
-    events = input(conf) do |pipeline, queue|
-      socket = Stud::try(5.times) { TCPSocket.new(host, port) }
-      event_count.times do |i|
-        # unicode smiley for testing unicode support!
-        socket.puts("#{i} ☹")
-        socket.flush
+      host = 'localhost'
+      events = input(conf) do |pipeline, queue|
+        socket = Stud::try(5.times) { TCPSocket.new(host, port) }
+        event_count.times do |i|
+          # unicode smiley for testing unicode support!
+          socket.puts("#{i} ☹")
+          socket.flush
+        end
+        socket.close
+
+        event_count.times.collect {queue.pop}
       end
-      socket.close
 
-      event_count.times.collect {queue.pop}
+      expect(events.length).to eq(event_count)
+      events = events.sort_by {|e| e.get("message")} # the ordering of events in the queue is highly timing-dependent
+      event_count.times do |i|
+        event = events[i]
+
+        aggregate_failures("event #{i}") do
+          expect(event.get("message")).to eq("#{i} ☹")
+          expect(event.get(ecs_select[disabled: "host", v1: "[@metadata][input][tcp][source][name]"])).to eq("localhost").or eq("ip6-localhost")
+          expect(event.get(ecs_select[disabled: "[@metadata][ip_address]", v1: "[@metadata][input][tcp][source][ip]"])).to eq('127.0.0.1')
+        end
+      end
     end
 
-    insist { events.length } == event_count
-    events = events.sort_by {|e| e.get("message")} # the ordering of events in the queue is highly timing-dependent
-    event_count.times do |i|
-      event = events[i]
-      insist { event.get("message") } == "#{i} ☹"
-      insist { ["localhost","ip6-localhost"].includes? event.get("host") }
-      insist { event.get("[@metadata][ip_address]") } == '127.0.0.1'
-    end
-  end
-
-  it "should handle PROXY protocol v1 connections" do
-    event_count = 10
-    conf = <<-CONFIG
-      input {
-        tcp {
-          proxy_protocol => true
-          port => '#{port}'
+    it "should handle PROXY protocol v1 connections" do
+      event_count = 10
+      conf = <<-CONFIG
+        input {
+          tcp {
+            proxy_protocol => true
+            port => '#{port}'
+          }
         }
-      }
-    CONFIG
+      CONFIG
 
-    events = input(conf) do |pipeline, queue|
-      socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
-      socket.puts("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r");
-      socket.flush
-      event_count.times do |i|
-        # unicode smiley for testing unicode support!
-        socket.puts("#{i} ☹")
+      events = input(conf) do |pipeline, queue|
+        socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+        socket.puts("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r");
         socket.flush
-      end
-      socket.close
+        event_count.times do |i|
+          # unicode smiley for testing unicode support!
+          socket.puts("#{i} ☹")
+          socket.flush
+        end
+        socket.close
 
-      event_count.times.collect {queue.pop}
+        event_count.times.collect {queue.pop}
+      end
+
+      expect(events.length).to eq(event_count)
+      events = events.sort_by {|e| e.get("message")} # the ordering of events in the queue is highly timing-dependent
+      events.each_with_index do |event, i|
+        aggregate_failures("event #{i}") do
+          expect(event.get("message")).to eq("#{i} ☹")
+          expect(event.get(ecs_select[disabled: "host",                    v1: "[@metadata][input][tcp][source][name]"])).to eq('1.2.3.4')
+          expect(event.get(ecs_select[disabled: "[@metadata][ip_address]", v1: "[@metadata][input][tcp][source][ip]"  ])).to eq('1.2.3.4')
+          expect(event.get(ecs_select[disabled: "port",                    v1: "[@metadata][input][tcp][source][port]"])).to eq('1234')
+          expect(event.get(ecs_select[disabled: "proxy_host",              v1: "[@metadata][input][tcp][proxy][ip]"  ])).to eq('5.6.7.8')
+          expect(event.get(ecs_select[disabled: "proxy_port",              v1: "[@metadata][input][tcp][proxy][port]"  ])).to eq('5678')
+        end
+      end
     end
 
-    insist { events.length } == event_count
-    events = events.sort_by {|e| e.get("message")} # the ordering of events in the queue is highly timing-dependent
-    event_count.times do |i|
-      insist { events[i].get("message") } == "#{i} ☹"
-      insist { events[i].get("host") } == "1.2.3.4"
-      insist { events[i].get("port") } == "1234"
-      insist { events[i].get("proxy_host") } == "5.6.7.8"
-      insist { events[i].get("proxy_port") } == "5678"
+    it "should read events with json codec" do
+      conf = <<-CONFIG
+        input {
+          tcp {
+            port => #{port}
+            codec => json
+          }
+        }
+      CONFIG
+
+      data = {
+        "hello" => "world",
+        "foo" => [1,2,3],
+        "baz" => { "1" => "2" },
+        "host" => "example host"
+      }
+
+      event = input(conf) do |pipeline, queue|
+        socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+        socket.puts(LogStash::Json.dump(data))
+        socket.close
+
+        queue.pop
+      end
+
+      insist { event.get("hello") } == data["hello"]
+      insist { event.get("foo").to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
+      insist { event.get("baz") } == data["baz"]
+
+      # Make sure the tcp input, w/ json codec, uses the event's 'host' value,
+      # if present, instead of providing its own
+      insist { event.get("host") } == data["host"]
+    end
+
+    it "should read events with json codec (testing 'host' handling)" do
+      conf = <<-CONFIG
+        input {
+          tcp {
+            port => #{port}
+            codec => json
+          }
+        }
+      CONFIG
+
+      data = {
+        "hello" => "world"
+      }
+
+      event = input(conf) do |pipeline, queue|
+        socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
+        socket.puts(LogStash::Json.dump(data))
+        socket.close
+
+        queue.pop
+      end
+
+      aggregate_failures("event") do
+        expect(event.get("hello")).to eq(data["hello"])
+        expect(event).to include(ecs_select[disabled: "host",                    v1: "[@metadata][input][tcp][source][name]"])
+        expect(event).to include(ecs_select[disabled: "[@metadata][ip_address]", v1: "[@metadata][input][tcp][source][ip]"  ])
+      end
     end
   end
 
   it "should read events with plain codec and ISO-8859-1 charset" do
     charset = "ISO-8859-1"
     conf = <<-CONFIG
-      input {
-        tcp {
-          port => #{port}
-          codec => plain { charset => "#{charset}" }
+        input {
+          tcp {
+            port => #{port}
+            codec => plain { charset => "#{charset}" }
+          }
         }
-      }
     CONFIG
 
     event = input(conf) do |pipeline, queue|
@@ -143,69 +220,10 @@ describe LogStash::Inputs::Tcp do
     end
 
     # Make sure the 0xA3 latin-1 code converts correctly to UTF-8.
-    insist { event.get("message").size } == 1
-    insist { event.get("message").bytesize } == 2
-    insist { event.get("message") } == "£"
-  end
-
-  it "should read events with json codec" do
-    conf = <<-CONFIG
-      input {
-        tcp {
-          port => #{port}
-          codec => json
-        }
-      }
-    CONFIG
-
-    data = {
-      "hello" => "world",
-      "foo" => [1,2,3],
-      "baz" => { "1" => "2" },
-      "host" => "example host"
-    }
-
-    event = input(conf) do |pipeline, queue|
-      socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
-      socket.puts(LogStash::Json.dump(data))
-      socket.close
-
-      queue.pop
+    aggregate_failures("event") do
+      expect(event.get("message")).to have_attributes(size: 1, bytesize: 2, encoding: Encoding.find("UTF-8"))
+      expect(event.get("message")).to eq("£")
     end
-
-    insist { event.get("hello") } == data["hello"]
-    insist { event.get("foo").to_a } == data["foo"] # to_a to cast Java ArrayList produced by JrJackson
-    insist { event.get("baz") } == data["baz"]
-
-    # Make sure the tcp input, w/ json codec, uses the event's 'host' value,
-    # if present, instead of providing its own
-    insist { event.get("host") } == data["host"]
-  end
-
-  it "should read events with json codec (testing 'host' handling)" do
-    conf = <<-CONFIG
-      input {
-        tcp {
-          port => #{port}
-          codec => json
-        }
-      }
-    CONFIG
-
-    data = {
-      "hello" => "world"
-    }
-
-    event = input(conf) do |pipeline, queue|
-      socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
-      socket.puts(LogStash::Json.dump(data))
-      socket.close
-
-      queue.pop
-    end
-
-    insist { event.get("hello") } == data["hello"]
-    insist { event }.include?("host")
   end
 
   it "should read events with json_lines codec" do
