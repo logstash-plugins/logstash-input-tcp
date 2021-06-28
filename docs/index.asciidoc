@@ -79,7 +79,6 @@ This can be helpful when applications are configured to send events directly to 
 Historically, this metadata was added to a variety of non-standard top-level fields, which had the potential to create confusion and schema conflicts downstream.
 With ECS compatibility mode, we can ensure a pipeline still has access to this metadata throughout the event's lifecycle without polluting the top-level namespace.
 
-.Source Metadata Location by `ecs_compatibility` value
 [cols="3,7,5"]
 |=======================================================================
 | Metadata Group                                     | ecs: `v1`, `v8`                       | ecs: `disabled`
