@@ -1,3 +1,15 @@
+## 6.2.0
+ - Added ECS Compatibility Mode [#165](https://github.com/logstash-plugins/logstash-input-tcp/pull/165)
+   - When operating in an ECS Compatibility mode, metadata about the connection on which we are receiving data is nested in well-named fields under `[@metadata][input][tcp]` instead of at the root level.
+ - Fix: source address is no longer missing when a proxy is present
+
+## 6.1.1
+ - Changed jar dependencies to reflect newer versions [#179](https://github.com/logstash-plugins/logstash-input-http/pull/179)
+
+## 6.1.0
+  - Feat: improve SSL error logging/unwrapping [#178](https://github.com/logstash-plugins/logstash-input-tcp/pull/178)
+  - Fix: the plugin will no longer have a side effect of adding the Bouncy-Castle security provider at runtime  
+
 ## 6.0.10
   - bumping dependency commons-io [#174](https://github.com/logstash-plugins/logstash-input-tcp/pull/174)
 

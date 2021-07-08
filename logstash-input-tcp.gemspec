@@ -21,6 +21,12 @@ Gem::Specification.new do |s|
 
   # Gem dependencies
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
+  s.add_runtime_dependency 'logstash-mixin-ecs_compatibility_support', '~>1.2'
+
+  s.add_runtime_dependency 'logstash-core', '>= 6.7.0'
+
+  # we depend on bouncycastle's bcpkix-jdk15on being on the class-path
+  s.add_runtime_dependency 'jruby-openssl', '>= 0.10.2', '< 0.12'
 
   # line vs streaming codecs required for fix_streaming_codecs
   # TODO: fix_streaming_codecs should be refactored to not
