@@ -429,6 +429,115 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             expect { subject.register }.to_not raise_error
           end
         end
+
+        context "encrypted (AES-156) key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_aes256.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_aes256.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "encrypted (SEED) key" do # algorithm not supported by Sun provider
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_seed.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_seed.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            pending # newer BC should be able to read this
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "encrypted (DES) key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_des.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_des.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "encrypted PKCS#8 key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs8.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs8.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        # NOTE: only BC provider can read the legacy (OpenSSL) format
+        context "encrypted PKCS#5 v1.5 key" do # openssl pkcs8 -topk8 -v1 PBE-MD5-DES
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs5v15.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs5v15.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "small (legacy) key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
       end
     end
 
