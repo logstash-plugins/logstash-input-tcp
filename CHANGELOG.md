@@ -1,3 +1,7 @@
+## 6.1.1
+  - Fix: restore logic to add the Bouncy-Castle security provider at runtime [#181](https://github.com/logstash-plugins/logstash-input-tcp/pull/181)
+    - required to properly read encrypted (legacy) OpenSSL PKCS#5v1.5 keys
+
 ## 6.2.0
  - Added ECS Compatibility Mode [#165](https://github.com/logstash-plugins/logstash-input-tcp/pull/165)
    - When operating in an ECS Compatibility mode, metadata about the connection on which we are receiving data is nested in well-named fields under `[@metadata][input][tcp]` instead of at the root level.
