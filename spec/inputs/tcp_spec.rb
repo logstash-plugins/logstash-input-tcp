@@ -429,6 +429,42 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             expect { subject.register }.to_not raise_error
           end
         end
+
+        context "generated encrypted PKCS#1 key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_aes256.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_aes256.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "generated encrypted PKCS#8 key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs8.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs8.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
       end
     end
 
