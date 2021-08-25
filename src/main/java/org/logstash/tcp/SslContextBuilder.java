@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.PrivateKey;
+import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -90,6 +91,9 @@ public class SslContextBuilder {
         if (keyPath == null) {
             throw new IllegalArgumentException("missing ssl_key");
         }
+
+        // NOTE: decrypting openssl key-pair (PEMEncryptedKeyPair) assumes the BC provider
+        installBouncyCastleProvider();
 
         // Check key strength
         if (Cipher.getMaxAllowedKeyLength("AES") <= 128) {
@@ -187,6 +191,14 @@ public class SslContextBuilder {
             fis.close();
         }
         return certificates;
+    }
+
+    private static void installBouncyCastleProvider() {
+        synchronized (Security.class) {
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(new BouncyCastleProvider());
+            }
+        }
     }
 
 }
