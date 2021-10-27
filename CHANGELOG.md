@@ -1,3 +1,6 @@
+## Unreleased
+  - Fix: update to Gradle 7 [#184](https://github.com/logstash-plugins/logstash-input-tcp/pull/184)
+
 ## 6.2.1
   - Fix: restore logic to add the Bouncy-Castle security provider at runtime [#181](https://github.com/logstash-plugins/logstash-input-tcp/pull/181)
     - required to properly read encrypted (legacy) OpenSSL PKCS#5v1.5 keys
