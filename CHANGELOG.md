@@ -1,3 +1,6 @@
+## 6.2.3
+  - Update log4j dependencies [#186](https://github.com/logstash-plugins/logstash-input-tcp/pull/186)
+
 ## 6.2.2
   - Internal: update to Gradle 7 [#184](https://github.com/logstash-plugins/logstash-input-tcp/pull/184)
   - Internal: relax jruby-openssl upper bound [#185](https://github.com/logstash-plugins/logstash-input-tcp/pull/185)
