@@ -1,3 +1,6 @@
+## 6.2.4
+  - Removed vendoring of log4j core library [#18n](https://github.com/logstash-plugins/logstash-input-tcp/pull/18n)
+
 ## 6.2.3
   - Update log4j dependencies [#186](https://github.com/logstash-plugins/logstash-input-tcp/pull/186)
 
