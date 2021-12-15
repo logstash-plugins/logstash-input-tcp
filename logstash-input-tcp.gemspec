@@ -31,6 +31,10 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'logstash-codec-json_lines'
   s.add_runtime_dependency 'logstash-codec-multiline'
 
+  # 5.x branch of this plugin provides support for LS5&6.
+  # To use LS7+, you must use v6+ of this plugin.
+  s.add_runtime_dependency 'logstash-core', '< 7.0.0'
+
   s.add_development_dependency 'logstash-devutils', '~> 1.0'
   s.add_development_dependency 'flores', '~> 0.0.6'
   s.add_development_dependency 'stud', '~> 0.0.22'
