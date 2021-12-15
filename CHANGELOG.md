@@ -1,3 +1,7 @@
+## 5.2.4
+  - Update Log4j dependency to 2.16, ensuring this plugin's runtime relies only on log4j-api instead
+     of providing its own log4j-core [#189](https://github.com/logstash-plugins/logstash-input-tcp/pull/189)
+
 ## 5.2.3
   - Skip empty lines while reading certificate files [#144](https://github.com/logstash-plugins/logstash-input-tcp/issues/144)
 
