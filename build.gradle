@@ -44,12 +44,6 @@ repositories {
   mavenCentral()
 }
 
-//apply plugin: 'com.github.johnrengelman.shadow'
-
-//shadowJar {
-//  classifier = null
-//}
-
 dependencies {
   testImplementation 'org.apache.logging.log4j:log4j-core:2.17.1'
 
@@ -94,13 +88,3 @@ task vendor {
 }
 
 vendor.dependsOn(jar, generateGemJarRequiresFile)
-
-//task vendor {
-//  doLast {
-//    String vendorPathPrefix = "vendor/jar-dependencies"
-//    String projectGroupPath = project.group.replaceAll('\\.', '/')
-//    File projectJarFile = file("${vendorPathPrefix}/${projectGroupPath}/${project.name}/${project.version}/${project.name}-${project.version}.jar")
-//    projectJarFile.mkdirs()
-//    Files.copy(file("$buildDir/libs/${project.name}-${project.version}.jar").toPath(), projectJarFile.toPath(), REPLACE_EXISTING)
-//  }
-//}
