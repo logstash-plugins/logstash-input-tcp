@@ -1,3 +1,6 @@
+## 6.2.5
+  - Update log4j dependency to 2.17.0
+
 ## 6.2.4
   - Update Log4j dependency to 2.16, ensuring this plugin's runtime relies only on log4j-api instead 
     of providing its own log4j-core. [#188](https://github.com/logstash-plugins/logstash-input-tcp/pull/188)
