@@ -1,3 +1,6 @@
+## Unreleased
+  - [DOC] Fix incorrect pipeline code snippet
+  
 ## 6.2.5
   - Update log4j dependency to 2.17.0
 

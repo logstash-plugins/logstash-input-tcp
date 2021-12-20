@@ -105,9 +105,9 @@ If an event is missing this metadata, it can be copied into place from the sourc
 [source,txt]
 -----
 filter {
-  if [@metadata][input][tcp][source] and not [host] {
+  if [@metadata][input][tcp][source] and ![host] {
     mutate {
-      copy {
+      copy => {
         "[@metadata][input][tcp][source][name]" => "[host][name]"
         "[@metadata][input][tcp][source][ip]"   => "[host][ip]"
       }
