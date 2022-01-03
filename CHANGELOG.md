@@ -1,7 +1,12 @@
+## 6.2.7
+  - Build: skip shadowing jar dependencies [#187](https://github.com/logstash-plugins/logstash-input-tcp/pull/187)
+    * plugin no longer shadows dependencies into its *logstash-input-tcp.jar*
+    * log4j-api is now a provided dependency and is no longer packaged with the plugin
+
 ## 6.2.6
   - [DOC] Fix incorrect pipeline code snippet [#194](https://github.com/logstash-plugins/logstash-input-tcp/pull/194)
   - Update log4j dependency to 2.17.1 [#196](https://github.com/logstash-plugins/logstash-input-tcp/pull/196)
-  
+
 ## 6.2.5
   - Update log4j dependency to 2.17.0
 
