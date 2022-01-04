@@ -4,4 +4,4 @@ require 'jar_dependencies'
 require_jar('io.netty', 'netty-all', '4.1.65.Final')
 require_jar('commons-io', 'commons-io', '2.8.0')
 
-require_jar('org.logstash.inputs', 'logstash-input-tcp', '6.2.5')
+require_jar('org.logstash.inputs', 'logstash-input-tcp', '6.2.6')
