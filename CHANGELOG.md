@@ -1,3 +1,6 @@
+## 5.2.7
+  - Update Log4j dependency to 2.17.1
+
 ## 5.2.6
   - Ensure correct jar paths when building plugin from a non-standard directory
 
