@@ -51,11 +51,11 @@ shadowJar {
 }
 
 dependencies {
-  testImplementation 'org.apache.logging.log4j:log4j-core:2.17.0'
+  testImplementation 'org.apache.logging.log4j:log4j-core:2.17.1'
 
   implementation 'io.netty:netty-all:4.1.65.Final'
   implementation group: 'commons-io', name: 'commons-io', version: '2.8.0' // used from Netty
-  implementation 'org.apache.logging.log4j:log4j-api:2.17.0'
+  implementation 'org.apache.logging.log4j:log4j-api:2.17.1'
 
   // 1.60 effectively means jruby-openssl >= 0.10.2 (logstash > 6.7)
   compileOnly group: 'org.bouncycastle', name: 'bcpkix-jdk15on', version: "1.60"

@@ -1,5 +1,6 @@
-## Unreleased
-  - [DOC] Fix incorrect pipeline code snippet
+##  6.2.6
+  - [DOC] Fix incorrect pipeline code snippet [#194](https://github.com/logstash-plugins/logstash-input-tcp/pull/194)
+  - Update log4j dependency to 2.17.1 [#196](https://github.com/logstash-plugins/logstash-input-tcp/pull/196)
   
 ## 6.2.5
   - Update log4j dependency to 2.17.0
