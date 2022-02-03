@@ -113,7 +113,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config :ssl_certificate_authorities, :validate => :array, :default => []
 
   # NOTE: setting [] uses Java SSL engine defaults.
-  config :ssl_supported_protocols, :validate => :string, :default => ['TLSv1.2', 'TLSv1.3'], :list => true
+  config :ssl_supported_protocols, :validate => ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'], :default => [], :list => true
 
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
   config :tcp_keep_alive, :validate => :boolean, :default => false
@@ -300,6 +300,11 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
+      if ssl_supported_protocols.any?
+        min_max_version = ssl_supported_protocols.sort.map { |n| n.sub('v', '').sub(',', '_').to_sym } # 'TLSv1.2' => :TLS1_2
+        @ssl_context.min_version = min_max_version.first
+        @ssl_context.max_version = min_max_version.last
+      end
     rescue => e
       @logger.error("Could not inititalize SSL context", :message => e.message, :exception => e.class, :backtrace => e.backtrace)
       raise e
@@ -382,7 +387,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       .set_ssl_key_password(@ssl_key_passphrase.value)
       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
-      .set_ssl_supported_protocols(@ssl_supported_protocols.to_java(:string))
+      .set_ssl_supported_protocols(ssl_supported_protocols.to_java(:string))
       .build_context
   rescue java.lang.IllegalArgumentException => e
     @logger.error("SSL configuration invalid", error_details(e))
