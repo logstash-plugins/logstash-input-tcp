@@ -47,6 +47,8 @@ public class SslContextBuilder {
     private String[] certificateAuthorities = NULL_STRING_ARRAY;
     private String[] extraChainCerts = NULL_STRING_ARRAY;
 
+    private String[] supportedProtocols = NULL_STRING_ARRAY;
+
     public SslContextBuilder setSslEnabled(boolean enabled) {
         this.sslEnabled = enabled;
         return this;
@@ -79,6 +81,11 @@ public class SslContextBuilder {
 
     public SslContextBuilder setSslExtraChainCerts(String[] paths) {
         this.extraChainCerts = paths;
+        return this;
+    }
+
+    public SslContextBuilder setSslSupportedProtocols(String[] protocols) {
+        this.supportedProtocols = protocols;
         return this;
     }
 
@@ -151,6 +158,8 @@ public class SslContextBuilder {
         }
 
         sslContextBuilder.clientAuth(shouldVerify ? ClientAuth.REQUIRE : ClientAuth.NONE);
+
+        if (supportedProtocols.length > 0) sslContextBuilder.protocols(supportedProtocols);
 
         try {
             return sslContextBuilder.build();

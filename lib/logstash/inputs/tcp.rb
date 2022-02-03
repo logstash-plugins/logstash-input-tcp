@@ -112,6 +112,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # All the certificates will be read and added to the trust store.
   config :ssl_certificate_authorities, :validate => :array, :default => []
 
+  # NOTE: setting [] uses Java SSL engine defaults.
   config :ssl_supported_protocols, :validate => :string, :default => ['TLSv1.2', 'TLSv1.3'], :list => true
 
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
@@ -381,6 +382,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       .set_ssl_key_password(@ssl_key_passphrase.value)
       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
+      .set_ssl_supported_protocols(@ssl_supported_protocols.to_java(:string))
       .build_context
   rescue java.lang.IllegalArgumentException => e
     @logger.error("SSL configuration invalid", error_details(e))
