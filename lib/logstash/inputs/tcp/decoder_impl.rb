@@ -13,7 +13,7 @@ class DecoderImpl
     @first_read = true
   end
 
-  def decode(channel_addr, data)
+  def decode(channel_addr, data, cert_subject = "")
     bytes = Java::byte[data.readableBytes].new
     data.getBytes(0, bytes)
     data.release
@@ -22,7 +22,7 @@ class DecoderImpl
       tbuf = init_first_read(channel_addr, tbuf)
     end
     @tcp.decode_buffer(@ip_address, @address, @port, @codec,
-                       @proxy_address, @proxy_port, tbuf, nil)
+                       @proxy_address, @proxy_port, tbuf, nil, cert_subject)
   end
 
   def copy

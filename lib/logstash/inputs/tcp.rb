@@ -23,7 +23,7 @@ java_import org.logstash.tcp.InputLoop
 # #### Accepting log4j2 logs
 #
 # Log4j2 can send JSON over a socket, and we can use that combined with our tcp
-# input to accept the logs. 
+# input to accept the logs.
 #
 # First, we need to configure your application to send logs in JSON over a
 # socket. The following log4j2.xml accomplishes this task.
@@ -179,13 +179,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def decode_buffer(client_ip_address, client_address, client_port, codec, proxy_address,
-                    proxy_port, tbuf, socket)
+                    proxy_port, tbuf, socket, cert_subject = "")
     codec.decode(tbuf) do |event|
       if @proxy_protocol
         event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
         event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
       end
-      enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
+      enqueue_decorated(event, client_ip_address, client_address, client_port, socket, cert_subject)
     end
   end
 
@@ -257,15 +257,15 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     flush_codec(codec, client_ip_address, client_address, client_port, socket)
   end
 
-  def enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
+  def enqueue_decorated(event, client_ip_address, client_address, client_port, socket, cert_subject = "")
     event.set(HOST_FIELD, client_address) unless event.get(HOST_FIELD)
     event.set(HOST_IP_FIELD, client_ip_address) unless event.get(HOST_IP_FIELD)
     event.set(PORT_FIELD, client_port) unless event.get(PORT_FIELD)
-    event.set(SSLSUBJECT_FIELD, socket.peer_cert.subject.to_s) if socket && @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
+    event.set(SSLSUBJECT_FIELD, cert_subject) if !cert_subject.empty? && @ssl_enable && @ssl_verify && event.get(SSLSUBJECT_FIELD).nil?
     decorate(event)
     @output_queue << event
   end
-  
+
   def server?
     @mode == "server"
   end

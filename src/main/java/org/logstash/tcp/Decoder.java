@@ -12,8 +12,9 @@ public interface Decoder {
      * Decode data coming from specific {@link SocketAddress} session.
      * @param key {@link SocketAddress}
      * @param message Data {@link ByteBuf} for this address
+     * @param peerSslCertSubject String The subject of the peer's SSL certificate
      */
-    void decode(SocketAddress key, ByteBuf message);
+    void decode(SocketAddress key, ByteBuf message, String peerSslCertSubject);
 
     /**
      * Creates a copy of this decoder, that has all internal meta data cleared.
