@@ -23,10 +23,12 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
   s.add_runtime_dependency 'logstash-mixin-ecs_compatibility_support', '~>1.2'
 
-  s.add_runtime_dependency 'logstash-core', '>= 6.7.0'
+  s.add_runtime_dependency 'logstash-core', '>= 6.7.0' # LS 6.7: JRuby 9.2.7.0
 
   # we depend on bouncycastle's bcpkix-jdk15on being on the class-path
-  s.add_runtime_dependency 'jruby-openssl', '>= 0.12.1' # 0.12 supports TLSv1.3
+  # NOTE: be able to test against LS 7.x/8.x
+  # (they have strict jruby-openssl requirements in logstash-core e.g. "= 0.11.0")
+  s.add_runtime_dependency 'jruby-openssl', '>= 0.12.2' unless ENV['CI'] # 0.12 supports TLSv1.3
 
   # line vs streaming codecs required for fix_streaming_codecs
   # TODO: fix_streaming_codecs should be refactored to not
