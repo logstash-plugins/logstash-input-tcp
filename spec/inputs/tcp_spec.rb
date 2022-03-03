@@ -653,8 +653,10 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
           context "with enforced protocol version" do
             let(:config) do
-              base_config.merge 'ssl_supported_protocols' => [ 'TLSv1.3' ]
+              base_config.merge 'ssl_supported_protocols' => [ tls_version ]
             end
+
+            let(:tls_version) { JOpenSSL::VERSION > '0.12' ? 'TLSv1.3' : 'TLSv1.2'  }
 
             it "should be able to connect and write data" do
               used_tls_protocol = nil
@@ -667,7 +669,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
                 tcp.close
               end
               expect(result.size).to eq(1)
-              expect(used_tls_protocol).to eql 'TLSv1.3'
+              expect(used_tls_protocol).to eql tls_version
             end
           end
 
