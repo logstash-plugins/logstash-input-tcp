@@ -661,7 +661,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               result = TcpHelpers.pipelineless_input(subject, 1) do
                 sslsocket.connect
                 sslsocket.write("#{message}\n")
-                used_tls_protocol = sslsocket.session.to_java('javax.net.ssl.SSLSession').getProtocol
+                used_tls_protocol = sslsocket.session.to_java(javax.net.ssl.SSLSession).getProtocol
                 tcp.flush
                 sslsocket.close
                 tcp.close
@@ -684,7 +684,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               result = TcpHelpers.pipelineless_input(subject, 1) do
                 sslsocket.connect
                 sslsocket.write("#{message}\n")
-                used_tls_protocol = sslsocket.session.to_java('javax.net.ssl.SSLSession').getProtocol
+                used_tls_protocol = sslsocket.session.to_java(javax.net.ssl.SSLSession).getProtocol
                 tcp.flush
                 sslsocket.close
                 tcp.close
