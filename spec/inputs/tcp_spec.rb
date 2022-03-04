@@ -789,4 +789,44 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       let(:config) { { "port" => port } }
     end
   end
+
+  context 'ssl context (client mode)' do
+
+    let(:chain_of_certificates) do
+      TcpHelpers.new.chain_of_certificates
+    end
+
+    let(:config) do
+      {
+          "host" => "127.0.0.1",
+          "port" => port,
+          "mode" => 'client',
+          "ssl_enable" => true,
+          "ssl_cert" => chain_of_certificates[:b_cert].path,
+          "ssl_key" => chain_of_certificates[:b_key].path,
+          "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+          "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ]
+      }
+    end
+
+    subject(:plugin) { LogStash::Inputs::Tcp.new(config) }
+
+    let(:ssl_context) { plugin.send :ssl_context }
+
+    context "with cipher suites" do
+      let(:config) do
+        super().merge 'ssl_cipher_suites' => [ cipher_suite ]
+      end
+
+      let(:cipher_suite) { 'TLS_RSA_WITH_AES_128_GCM_SHA256' }
+
+      it "sets ciphers" do
+        cipher_ary = ssl_context.ciphers.first
+        expect( cipher_ary[0] ).to eql 'AES128-GCM-SHA256'
+      end
+
+    end if JOpenSSL::VERSION >= '0.12.2'
+
+  end
+
 end
