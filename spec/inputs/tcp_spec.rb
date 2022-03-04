@@ -696,6 +696,28 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             end
           end
 
+          context "with specified cipher suites" do
+            let(:config) do
+              base_config.merge 'ssl_cipher_suites' => [ cipher_suite ]
+            end
+
+            let(:cipher_suite) { 'TLS_RSA_WITH_AES_128_GCM_SHA256' }
+
+            it "should be able to connect and write data" do
+              used_cipher_suite = nil
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                used_cipher_suite = sslsocket.session.to_java(javax.net.ssl.SSLSession).getCipherSuite
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(used_cipher_suite).to eql cipher_suite
+            end
+          end
+
         end
 
         context "with a poorly-behaving client" do

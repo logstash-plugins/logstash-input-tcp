@@ -18,6 +18,7 @@ import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 
 import javax.crypto.Cipher;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLServerSocketFactory;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -28,13 +29,22 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SslContextBuilder {
 
     private static final String[] NULL_STRING_ARRAY = new String[0];
 
     private final static Logger logger = LogManager.getLogger(SslContextBuilder.class);
+
+    static Set<String> getSupportedCipherSuites() {
+        return new HashSet<>(Arrays.asList(
+            ((javax.net.ssl.SSLServerSocketFactory) SSLServerSocketFactory.getDefault()).getSupportedCipherSuites()
+        ));
+    }
 
     private boolean sslEnabled;
     private boolean shouldVerify;
@@ -48,6 +58,7 @@ public class SslContextBuilder {
     private String[] extraChainCerts = NULL_STRING_ARRAY;
 
     private String[] supportedProtocols = NULL_STRING_ARRAY;
+    private String[] cipherSuites = NULL_STRING_ARRAY;
 
     public SslContextBuilder setSslEnabled(boolean enabled) {
         this.sslEnabled = enabled;
@@ -86,6 +97,22 @@ public class SslContextBuilder {
 
     public SslContextBuilder setSslSupportedProtocols(String[] protocols) {
         this.supportedProtocols = protocols;
+        return this;
+    }
+
+    public SslContextBuilder setSslCipherSuites(String[] suites) {
+        if (suites.length > 0) {
+            final Set<String> supportedCipherSuites = getSupportedCipherSuites();
+            for (String cipher : suites) {
+                if (supportedCipherSuites.contains(cipher)) {
+                    logger.debug("{} cipher is supported: {}", cipher);
+                } else {
+                    throw new IllegalArgumentException("Cipher `" + cipher + "` is not available");
+                }
+            }
+        }
+
+        this.cipherSuites = suites;
         return this;
     }
 
@@ -160,6 +187,7 @@ public class SslContextBuilder {
         sslContextBuilder.clientAuth(shouldVerify ? ClientAuth.REQUIRE : ClientAuth.NONE);
 
         if (supportedProtocols.length > 0) sslContextBuilder.protocols(supportedProtocols);
+        if (cipherSuites.length > 0) sslContextBuilder.ciphers(Arrays.asList(cipherSuites));
 
         try {
             return sslContextBuilder.build();
