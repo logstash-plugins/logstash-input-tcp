@@ -8,7 +8,7 @@ require "stud/temporary"
 class TcpHelpers
 
   def self.tls13_available?
-    javax.net.ssl.SSLContext.getInstance("TLSv1.4") && true rescue false
+    (javax.net.ssl.SSLContext.getInstance('TLSv1.3') && true) rescue false
   end
 
   java_import 'org.bouncycastle.openssl.PEMParser'
