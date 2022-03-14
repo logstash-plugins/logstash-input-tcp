@@ -112,9 +112,11 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # All the certificates will be read and added to the trust store.
   config :ssl_certificate_authorities, :validate => :array, :default => []
 
-  # NOTE: setting [] uses Java SSL engine defaults.
+  # NOTE: the default setting [] uses Java SSL engine defaults.
   config :ssl_supported_protocols, :validate => ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'], :default => [], :list => true
 
+  # The list of ciphers suite to use, listed by priorities.
+  # NOTE: the default setting [] uses Java SSL defaults.
   config :ssl_cipher_suites, :validate => :array, :default => []
 
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
