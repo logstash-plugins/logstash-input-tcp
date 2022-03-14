@@ -158,13 +158,13 @@ at the TCP layer and IPs will not be resolved to hostnames.
 [id="plugins-{type}s-{plugin}-ecs_compatibility"]
 ===== `ecs_compatibility`
 
-* Value type is <<string,string>>
-* Supported values are:
-** `disabled`: unstructured connection metadata added at root level
-** `v1`,`v8`: structured connection metadata added under `[@metadata][input][tcp]`
-* Default value depends on which version of Logstash is running:
-** When Logstash provides a `pipeline.ecs_compatibility` setting, its value is used as the default
-** Otherwise, the default value is `disabled`.
+  * Value type is <<string,string>>
+  * Supported values are:
+    ** `disabled`: unstructured connection metadata added at root level
+    ** `v1`,`v8`: structured connection metadata added under `[@metadata][input][tcp]`
+  * Default value depends on which version of Logstash is running:
+    ** When Logstash provides a `pipeline.ecs_compatibility` setting, its value is used as the default
+    ** Otherwise, the default value is `disabled`.
 
 Controls this plugin's compatibility with the https://www.elastic.co/guide/en/ecs/current/index.html[Elastic Common Schema (ECS)].
 The value of this setting affects the <<plugins-{type}s-{plugin}-ecs_metadata,placement of a TCP connection's metadata>> on events.
