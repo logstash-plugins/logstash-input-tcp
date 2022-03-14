@@ -105,7 +105,7 @@ public class SslContextBuilder {
             final Set<String> supportedCipherSuites = getSupportedCipherSuites();
             for (String cipher : suites) {
                 if (supportedCipherSuites.contains(cipher)) {
-                    logger.debug("{} cipher is supported: {}", cipher);
+                    logger.debug("{} cipher is supported", cipher);
                 } else {
                     throw new IllegalArgumentException("Cipher `" + cipher + "` is not available");
                 }
