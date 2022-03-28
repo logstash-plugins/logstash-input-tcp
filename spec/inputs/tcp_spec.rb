@@ -657,7 +657,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             end
 
             # when (Docker) testing against LS 6.x it's using Java 1.8 where TLS 1.3 isn't available
-            let(:tls_version) { (JOpenSSL::VERSION > '0.12' && TcpHelpers.tls13_available?) ? 'TLSv1.3' : 'TLSv1.2'  }
+            let(:tls_version) { (JOpenSSL::VERSION > '0.12' && TcpHelpers.tls13_available_by_default?) ? 'TLSv1.3' : 'TLSv1.2' }
 
             it "should be able to connect and write data" do
               used_tls_protocol = nil

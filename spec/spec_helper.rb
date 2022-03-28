@@ -7,8 +7,15 @@ require "stud/temporary"
 
 class TcpHelpers
 
-  def self.tls13_available?
-    (javax.net.ssl.SSLContext.getInstance('TLSv1.3') && true) rescue false
+  def self.tls13_available_by_default?
+    begin
+      context = javax.net.ssl.SSLContext.getInstance('TLS')
+      context.init nil, nil, nil
+      context.getDefaultSSLParameters.getProtocols.include? 'TLSv1.3'
+    rescue => e
+      warn "failed to detect TLSv1.3 support: #{e.inspect}"
+      nil
+    end
   end
 
   java_import 'org.bouncycastle.openssl.PEMParser'
