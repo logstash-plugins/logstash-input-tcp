@@ -117,7 +117,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   # The list of ciphers suite to use, listed by priorities.
   # NOTE: the default setting [] uses Java SSL defaults.
-  config :ssl_cipher_suites, :validate => :array, :default => SslContextBuilder.getSupportedCipherSuites.to_a
+  config :ssl_cipher_suites, :validate => SslContextBuilder.getSupportedCipherSuites.to_a, :default => [], :list => true
 
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
   config :tcp_keep_alive, :validate => :boolean, :default => false
