@@ -705,7 +705,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               super().tap { |ctx| ctx.ssl_version = 'TLSv1.1' }
             end
 
-            it "should not be able to connect and write data xxx" do
+            it "should not be able to connect" do
               TcpHelpers.pipelineless_input(subject, 0) do
                 expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /No appropriate protocol/i)
                 sslsocket.close
@@ -733,6 +733,24 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               end
               expect(result.size).to eq(1)
               expect(used_cipher_suite).to eql cipher_suite
+            end
+          end
+
+          context "with unsupported client cipher" do
+            let(:config) do
+              base_config.merge 'ssl_cipher_suites' => [ 'TLS_RSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' ]
+            end
+
+            let(:sslcontext) do
+              super().tap { |ctx| ctx.ciphers = [ 'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384', 'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256' ] }
+            end
+
+            it "should not be able to connect" do
+              TcpHelpers.pipelineless_input(subject, 0) do
+                expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /handshake_failure/i)
+                sslsocket.close
+                tcp.close
+              end
             end
           end
 
