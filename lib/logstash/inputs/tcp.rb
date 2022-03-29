@@ -293,7 +293,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     return @ssl_context if @ssl_context
 
     begin
-      @ssl_context = OpenSSL::SSL::SSLContext.new
+      @ssl_context = new_ssl_context
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase.value)
       if @ssl_extra_chain_certs.any?
@@ -305,7 +305,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
       if ssl_supported_protocols.any?
-        min_max_version = ssl_supported_protocols.sort.map { |n| n.sub('v', '').sub(',', '_').to_sym } # 'TLSv1.2' => :TLS1_2
+        min_max_version = ssl_supported_protocols.sort.map { |n| n.sub('v', '').sub('.', '_').to_sym } # 'TLSv1.2' => :TLS1_2
         @ssl_context.min_version = min_max_version.first
         @ssl_context.max_version = min_max_version.last
       end
@@ -318,6 +318,11 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     end
 
     @ssl_context
+  end
+
+  # @note to be able to hook up into #ssl_context from tests
+  def new_ssl_context
+    OpenSSL::SSL::SSLContext.new
   end
 
   def load_cert_store
