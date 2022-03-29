@@ -107,6 +107,7 @@ public final class InputLoop implements Runnable, Closeable {
      * {@link Decoder}.
      */
     private static final class InputHandler extends ChannelInitializer<SocketChannel> {
+        private final String SSL_HANDLER = "ssl-handler";
 
         /**
          * {@link Decoder} supplied by JRuby.
@@ -133,7 +134,7 @@ public final class InputLoop implements Runnable, Closeable {
 
             // if SSL is enabled, the SSL handler must be added to the pipeline first
             if (sslContext != null) {
-                channel.pipeline().addLast(sslContext.newHandler(channel.alloc()));
+                channel.pipeline().addLast(SSL_HANDLER, sslContext.newHandler(channel.alloc()));
             }
 
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
@@ -196,9 +197,11 @@ public final class InputLoop implements Runnable, Closeable {
                 this.decoder = decoder;
             }
 
+            // 6.07 updated to pass in the full netty ChannelHandlerContext instead of the remoteaddress field
+            //      corresponding interface updated
             @Override
             public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-                decoder.decode(ctx.channel().remoteAddress(), (ByteBuf) msg);
+                decoder.decode(ctx, (ByteBuf) msg);
             }
 
             @Override
