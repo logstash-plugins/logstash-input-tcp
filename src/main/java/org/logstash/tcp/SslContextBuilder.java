@@ -40,10 +40,10 @@ public class SslContextBuilder {
 
     private final static Logger logger = LogManager.getLogger(SslContextBuilder.class);
 
-    static Set<String> getSupportedCipherSuites() {
-        return new HashSet<>(Arrays.asList(
+    public static List<String> getSupportedCipherSuites() {
+        return Arrays.asList(
             ((javax.net.ssl.SSLServerSocketFactory) SSLServerSocketFactory.getDefault()).getSupportedCipherSuites()
-        ));
+        );
     }
 
     private boolean sslEnabled;
@@ -102,7 +102,7 @@ public class SslContextBuilder {
 
     public SslContextBuilder setSslCipherSuites(String[] suites) {
         if (suites.length > 0) {
-            final Set<String> supportedCipherSuites = getSupportedCipherSuites();
+            final Set<String> supportedCipherSuites = new HashSet<>(getSupportedCipherSuites());
             for (String cipher : suites) {
                 if (supportedCipherSuites.contains(cipher)) {
                     logger.debug("{} cipher is supported", cipher);
