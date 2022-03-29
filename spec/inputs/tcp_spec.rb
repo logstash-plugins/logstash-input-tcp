@@ -747,7 +747,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
             it "should not be able to connect" do
               TcpHelpers.pipelineless_input(subject, 0) do
-                expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /handshake_failure/i)
+                expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /handshake_failure|no cipher match/i)
                 sslsocket.close
                 tcp.close
               end
