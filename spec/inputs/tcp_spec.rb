@@ -697,6 +697,23 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             end
           end
 
+          context "with unsupported client protocol" do
+            let(:config) do
+              base_config.merge 'ssl_supported_protocols' => [ 'TLSv1.2' ]
+            end
+            let(:sslcontext) do
+              super().tap { |ctx| ctx.ssl_version = 'TLSv1.1' }
+            end
+
+            it "should not be able to connect and write data xxx" do
+              TcpHelpers.pipelineless_input(subject, 0) do
+                expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /No appropriate protocol/i)
+                sslsocket.close
+                tcp.close
+              end
+            end
+          end
+
           context "with specified cipher suites" do
             let(:config) do
               base_config.merge 'ssl_cipher_suites' => [ cipher_suite ]
