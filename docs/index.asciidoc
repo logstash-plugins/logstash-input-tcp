@@ -232,7 +232,7 @@ You can define multiple files or paths. All the certificates will be read and ad
   * Value type is <<string,string>>
   * Default value includes _all_ cipher suites enabled by the JDK and depends on JDK configuration
 
-Supported cipher suites vary depending on Java version used, and entries look like `TLS_AES_256_GCM_SHA384`.
+Supported cipher suites vary depending on Java version used, and entries look like `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384`.
 For more information, see Oracle’s https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2[JDK SunJSSE provider documentation] and
 the table of supported https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names[Java cipher suite names].
 
