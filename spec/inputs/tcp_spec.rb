@@ -724,7 +724,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               expect(result.size).to eq(1)
               expect(used_tls_protocol).to eql 'TLSv1.2'
             end
-          end
+          end if TcpHelpers.tls13_available_by_default? # till CI testing against 6.x
 
           context "with unsupported client protocol" do
             let(:config) do
@@ -917,6 +917,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       before do
         @ssl_context = OpenSSL::SSL::SSLContext.new
         allow(subject).to receive(:new_ssl_context).and_return(@ssl_context)
+        allow(subject).to receive(:check_tls13_available_if_configured!)
         expect(@ssl_context).to receive(:min_version=).with(:'TLS1_1').and_call_original
         expect(@ssl_context).to receive(:max_version=).with(:'TLS1_3').and_call_original
       end
