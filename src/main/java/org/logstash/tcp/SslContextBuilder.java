@@ -22,7 +22,6 @@ import javax.net.ssl.SSLServerSocketFactory;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.Certificate;
@@ -45,13 +44,6 @@ public class SslContextBuilder {
         return Arrays.asList(
             ((javax.net.ssl.SSLServerSocketFactory) SSLServerSocketFactory.getDefault()).getSupportedCipherSuites()
         );
-    }
-
-    public static boolean tls13AvailableByDefault() throws GeneralSecurityException {
-        javax.net.ssl.SSLContext context = javax.net.ssl.SSLContext.getInstance("TLS");
-        context.init(null, null, null);
-        final String[] protocols = context.getDefaultSSLParameters().getProtocols();
-        return Arrays.asList(protocols).contains("TLSv1.3");
     }
 
     private boolean sslEnabled;

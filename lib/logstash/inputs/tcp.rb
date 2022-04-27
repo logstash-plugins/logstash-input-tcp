@@ -292,7 +292,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def ssl_context
     return @ssl_context if @ssl_context
 
-    check_tls13_available_if_configured!
     begin
       @ssl_context = new_ssl_context
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
@@ -392,7 +391,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   end
 
   def java_ssl_context
-    check_tls13_available_if_configured!
     SslContextBuilder.new
       .set_ssl_enabled(@ssl_enable)
       .set_should_verify(@ssl_verify)
@@ -410,35 +408,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   rescue java.lang.Exception => e
     @logger.error("SSL configuration failed", error_details(e, true))
     raise e
-  end
-
-  def check_tls13_available_if_configured!
-    return unless ssl_supported_protocols.include? 'TLSv1.3'
-
-    begin
-      unless SslContextBuilder.tls13AvailableByDefault
-        java_version = ENV_JAVA['java.version']
-        if java_version.start_with?('1.8')
-          patch = java_version.match(/_(\d+)/)
-          patch = patch[1].to_i if patch
-          if patch
-            if patch < 262
-              message, info = "TLSv1.3 is only supported since Java 8u262, please upgrade your JDK", { java_version: java_version }
-            else
-              message, info = "TLSv1.3 on Java 8 only works when the `-Djdk.tls.client.protocols=TLSv1.3` property is specified", {}
-            end
-          else
-            @logger.info('Could not parse patch number from java.version: ', java_version: java_version)
-          end
-        end
-
-        @logger.error(message, info) if message
-        raise LogStash::ConfigurationError.new(message || "TLSv1.3 is not supported")
-      end
-    rescue java.lang.Exception => e
-      @logger.error("TLSv1.3 detection failed", error_details(e, true))
-      raise e
-    end
   end
 
   def error_details(e, trace = false)

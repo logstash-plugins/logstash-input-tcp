@@ -549,8 +549,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       context "when ssl_enable is true" do
         let(:input) { subject }
         let(:queue) { Queue.new }
-        before(:each) { subject.register if do_register }
-        let(:do_register) { true }
+        before(:each) { subject.register }
 
         context "when using a certificate chain" do
           chain_of_certificates = TcpHelpers.new.chain_of_certificates
@@ -652,12 +651,13 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             end
           end
 
-          context "with enforced protocol version 1.2" do
+          context "with enforced protocol version" do
             let(:config) do
               base_config.merge 'ssl_supported_protocols' => [ tls_version ]
             end
 
-            let(:tls_version) { 'TLSv1.2' }
+            # when (Docker) testing against LS 6.x it's using Java 1.8 where TLS 1.3 isn't available
+            let(:tls_version) { (JOpenSSL::VERSION > '0.12' && TcpHelpers.tls13_available_by_default?) ? 'TLSv1.3' : 'TLSv1.2' }
 
             it "should be able to connect and write data" do
               used_tls_protocol = nil
@@ -672,35 +672,6 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               expect(result.size).to eq(1)
               expect(used_tls_protocol).to eql tls_version
             end
-          end
-
-          context "with enforced protocol version 1.3" do
-            let(:config) do
-              base_config.merge 'ssl_supported_protocols' => [ 'TLSv1.3' ]
-            end
-
-            if TcpHelpers.tls13_available_by_default?
-              it "should be able to connect and write data" do
-                used_tls_protocol = nil
-                result = TcpHelpers.pipelineless_input(subject, 1) do
-                  sslsocket.connect
-                  sslsocket.write("#{message}\n")
-                  used_tls_protocol = sslsocket.session.to_java(javax.net.ssl.SSLSession).getProtocol
-                  tcp.flush
-                  sslsocket.close
-                  tcp.close
-                end
-                expect(result.size).to eq(1)
-                expect(used_tls_protocol).to eql 'TLSv1.3'
-              end
-            else
-              let(:do_register) { false }
-
-              it "should fail with a configuration error" do
-                expect { subject.register }.to raise_error LogStash::ConfigurationError, /TLSv1\.3 on Java 8 only works when the .?-Djdk.tls.client.protocols=TLSv1.3.?/i
-              end
-            end
-
           end
 
           context "with enforced protocol range" do
@@ -890,7 +861,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         expect( cipher_ary[0] ).to eql 'AES128-GCM-SHA256'
       end
 
-    end
+    end if JOpenSSL::VERSION >= '0.12.2'
 
     context "with forced protocol" do
       let(:config) do
