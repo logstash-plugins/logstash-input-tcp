@@ -656,8 +656,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               base_config.merge 'ssl_supported_protocols' => [ tls_version ]
             end
 
-            # when (Docker) testing against LS 6.x it's using Java 1.8 where TLS 1.3 isn't available
-            let(:tls_version) { (JOpenSSL::VERSION > '0.12' && TcpHelpers.tls13_available_by_default?) ? 'TLSv1.3' : 'TLSv1.2' }
+            let(:tls_version) { 'TLSv1.3' }
 
             it "should be able to connect and write data" do
               used_tls_protocol = nil
@@ -861,7 +860,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         expect( cipher_ary[0] ).to eql 'AES128-GCM-SHA256'
       end
 
-    end if JOpenSSL::VERSION >= '0.12.2'
+    end
 
     context "with forced protocol" do
       let(:config) do
