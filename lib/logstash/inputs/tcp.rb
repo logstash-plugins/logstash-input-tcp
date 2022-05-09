@@ -304,11 +304,18 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
+
+      @ssl_context.min_version = :TLS1_1 # not strictly required - JVM should have disabled TLSv1
       if ssl_supported_protocols.any?
-        min_max_version = ssl_supported_protocols.sort.map { |n| n.sub('v', '').sub('.', '_').to_sym } # 'TLSv1.2' => :TLS1_2
-        @ssl_context.min_version = min_max_version.first
-        @ssl_context.max_version = min_max_version.last
+        disabled_protocols = ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'] - ssl_supported_protocols
+        unless OpenSSL::SSL.const_defined? :OP_NO_TLSv1_3 # work-around JRuby-OpenSSL bug - missing constant
+          @ssl_context.max_version = :TLS1_2 if disabled_protocols.delete('TLSv1.3')
+        end
+        # mapping 'TLSv1.2' -> OpenSSL::SSL::OP_NO_TLSv1_2
+        disabled_protocols.map! { |v| OpenSSL::SSL.const_get "OP_NO_#{v.sub('.', '_')}" }
+        @ssl_context.options = disabled_protocols.reduce(@ssl_context.options, :|)
       end
+
       if ssl_cipher_suites.any?
         @ssl_context.ciphers = ssl_cipher_suites # Java cipher names work with JOSSL >= 0.12.2
       end

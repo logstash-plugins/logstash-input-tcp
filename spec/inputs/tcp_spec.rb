@@ -867,16 +867,22 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         super().merge 'ssl_supported_protocols' => [ 'TLSv1.1' ]
       end
 
-      before do
-        @ssl_context = OpenSSL::SSL::SSLContext.new
-        allow(subject).to receive(:new_ssl_context).and_return(@ssl_context)
-        expect(@ssl_context).to receive(:min_version=).with(:'TLS1_1').and_call_original
-        expect(@ssl_context).to receive(:max_version=).with(:'TLS1_1').and_call_original
+      it "limits protocol selection" do
+        if OpenSSL::SSL.const_defined? :OP_NO_TLSv1_3
+          ssl_context = subject.send :ssl_context
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_3).to_not eql 0
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_2).to_not eql 0
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_1).to eql 0
+        else
+          ssl_context = OpenSSL::SSL::SSLContext.new
+          allow(subject).to receive(:new_ssl_context).and_return(ssl_context)
+          expect(ssl_context).to receive(:max_version=).with(:'TLS1_2').and_call_original
+          ssl_context = subject.send :ssl_context
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_2).to_not eql 0
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_1).to eql 0
+        end
       end
 
-      it "sets min/max version" do
-        plugin.send :ssl_context
-      end
     end
 
     context "with protocol range" do
@@ -884,16 +890,14 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         super().merge 'ssl_supported_protocols' => [ 'TLSv1.3', 'TLSv1.1', 'TLSv1.2' ]
       end
 
-      before do
-        @ssl_context = OpenSSL::SSL::SSLContext.new
-        allow(subject).to receive(:new_ssl_context).and_return(@ssl_context)
-        allow(subject).to receive(:check_tls13_available_if_configured!)
-        expect(@ssl_context).to receive(:min_version=).with(:'TLS1_1').and_call_original
-        expect(@ssl_context).to receive(:max_version=).with(:'TLS1_3').and_call_original
-      end
-
-      it "sets min/max version" do
-        plugin.send :ssl_context
+      it "does not limit protocol selection (except min_version)" do
+        ssl_context = OpenSSL::SSL::SSLContext.new
+        allow(subject).to receive(:new_ssl_context).and_return(ssl_context)
+        expect(ssl_context).to receive(:min_version=).with(:'TLS1_1').and_call_original
+        ssl_context = subject.send :ssl_context
+        expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_3).to eql 0 if OpenSSL::SSL.const_defined? :OP_NO_TLSv1_3
+        expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_2).to eql 0
+        expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_1).to eql 0
       end
     end
 
