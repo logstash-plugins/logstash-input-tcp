@@ -112,6 +112,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # All the certificates will be read and added to the trust store.
   config :ssl_certificate_authorities, :validate => :array, :default => []
 
+  # NOTE: the default setting [] uses Java SSL engine defaults.
+  config :ssl_supported_protocols, :validate => ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'], :default => [], :list => true
+
+  # The list of ciphers suite to use, listed by priorities.
+  # NOTE: the default setting [] uses Java SSL defaults.
+  config :ssl_cipher_suites, :validate => SslContextBuilder.getSupportedCipherSuites.to_a, :default => [], :list => true
+
   # Instruct the socket to use TCP keep alives. Uses OS defaults for keep alive settings.
   config :tcp_keep_alive, :validate => :boolean, :default => false
 
@@ -286,7 +293,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     return @ssl_context if @ssl_context
 
     begin
-      @ssl_context = OpenSSL::SSL::SSLContext.new
+      @ssl_context = new_ssl_context
       @ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
       @ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase.value)
       if @ssl_extra_chain_certs.any?
@@ -297,12 +304,32 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
         @ssl_context.cert_store  = load_cert_store
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       end
+
+      @ssl_context.min_version = :TLS1_1 # not strictly required - JVM should have disabled TLSv1
+      if ssl_supported_protocols.any?
+        disabled_protocols = ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'] - ssl_supported_protocols
+        unless OpenSSL::SSL.const_defined? :OP_NO_TLSv1_3 # work-around JRuby-OpenSSL bug - missing constant
+          @ssl_context.max_version = :TLS1_2 if disabled_protocols.delete('TLSv1.3')
+        end
+        # mapping 'TLSv1.2' -> OpenSSL::SSL::OP_NO_TLSv1_2
+        disabled_protocols.map! { |v| OpenSSL::SSL.const_get "OP_NO_#{v.sub('.', '_')}" }
+        @ssl_context.options = disabled_protocols.reduce(@ssl_context.options, :|)
+      end
+
+      if ssl_cipher_suites.any?
+        @ssl_context.ciphers = ssl_cipher_suites # Java cipher names work with JOSSL >= 0.12.2
+      end
     rescue => e
       @logger.error("Could not inititalize SSL context", :message => e.message, :exception => e.class, :backtrace => e.backtrace)
       raise e
     end
 
     @ssl_context
+  end
+
+  # @note to be able to hook up into #ssl_context from tests
+  def new_ssl_context
+    OpenSSL::SSL::SSLContext.new
   end
 
   def load_cert_store
@@ -379,6 +406,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       .set_ssl_key_password(@ssl_key_passphrase.value)
       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
+      .set_ssl_supported_protocols(ssl_supported_protocols.to_java(:string))
+      .set_ssl_cipher_suites(ssl_cipher_suites.to_java(:string))
       .build_context
   rescue java.lang.IllegalArgumentException => e
     @logger.error("SSL configuration invalid", error_details(e))

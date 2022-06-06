@@ -1,3 +1,6 @@
+## 6.3.0
+  - Feat: ssl_supported_protocols (TLSv1.3) + ssl_cipher_suites [#198](https://github.com/logstash-plugins/logstash-input-tcp/pull/198)
+
 ## 6.2.7
   - Build: skip shadowing jar dependencies [#187](https://github.com/logstash-plugins/logstash-input-tcp/pull/187)
     * plugin no longer shadows dependencies into its *logstash-input-tcp.jar*
