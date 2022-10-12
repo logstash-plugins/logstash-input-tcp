@@ -541,7 +541,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       end
     end
 
-    describe "#receive" do
+    describe "#receive", :ecs_compatibility_support do
       shared_examples "receiving events" do
         # TODO(sissel): Implement normal event-receipt tests as as a shared example
       end
@@ -549,7 +549,10 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       context "when ssl_enable is true" do
         let(:input) { subject }
         let(:queue) { Queue.new }
-        before(:each) { subject.register }
+        before(:each) do
+          allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility) if defined?(ecs_compatibility)
+          subject.register
+        end
 
         context "when using a certificate chain" do
           chain_of_certificates = TcpHelpers.new.chain_of_certificates
@@ -648,6 +651,38 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               end
               expect(result.size).to eq(1)
               expect(result.first.get("message")).to eq(message)
+            end
+          end
+
+          context "with a regular TLS setup" do
+            let(:config) do
+              {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_key" => chain_of_certificates[:b_key].path,
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+                "ssl_verify" => true
+              }
+            end
+
+            ecs_compatibility_matrix(:disabled,:v1, :v8 => :v1) do |ecs_select|
+              it "extracts the TLS subject from connections" do
+                result = TcpHelpers.pipelineless_input(subject, 1) do
+                  sslsocket.connect
+                  sslsocket.write("#{message}\n")
+                  tcp.flush
+                  sslsocket.close
+                  tcp.close
+                end
+                expect(result.size).to eq(1)
+                event = result.first
+
+                ssl_subject_field = ecs_select[disabled: 'sslsubject', v1:'[@metadata][input][tcp][tls][client][subject]']
+                expect(event.get(ssl_subject_field)).to eq("CN=RubyAA_Cert,DC=ruby-lang,DC=org")
+              end
             end
           end
 

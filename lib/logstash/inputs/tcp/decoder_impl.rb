@@ -11,16 +11,17 @@ class LogStash::Inputs::Tcp::DecoderImpl
     @first_read = true
   end
 
-  def decode(channel_addr, data)
+  def decode(ctx, data)
+    channel = ctx.channel()
     bytes = Java::byte[data.readableBytes].new
     data.getBytes(0, bytes)
     data.release
     tbuf = String.from_java_bytes bytes, "ASCII-8BIT"
     if @first_read
-      tbuf = init_first_read(channel_addr, tbuf)
+      tbuf = init_first_read(channel, tbuf)
     end
     @tcp.decode_buffer(@ip_address, @address, @port, @codec,
-                       @proxy_address, @proxy_port, tbuf, nil)
+                         @proxy_address, @proxy_port, tbuf, @sslsubject)
   end
 
   def copy
@@ -28,11 +29,12 @@ class LogStash::Inputs::Tcp::DecoderImpl
   end
 
   def flush
-    @tcp.flush_codec(@codec, @ip_address, @address, @port, nil)
+    @tcp.flush_codec(@codec, @ip_address, @address, @port, @sslsubject)
   end
 
   private
-  def init_first_read(channel_addr, received)
+  def init_first_read(channel, received)
+    channel_addr = channel.remoteAddress()
     if @tcp.proxy_protocol
       pp_hdr, filtered = received.split("\r\n", 2)
       pp_info = pp_hdr.split(/\s/)
@@ -53,8 +55,18 @@ class LogStash::Inputs::Tcp::DecoderImpl
       @address = extract_host_name(channel_addr) # name _or_ address of sender
       @port = channel_addr.get_port # outgoing port of sender (probably random)
     end
+    @sslsubject = extract_sslsubject(channel)
     @first_read = false
     filtered
+  end
+
+  private
+  def extract_sslsubject(channel)
+    return nil unless @tcp.ssl_enable && @tcp.ssl_verify
+
+    channel.pipeline().get("ssl-handler").engine().getSession().getPeerPrincipal().getName()
+  rescue Exception => e
+    nil
   end
 
   private
