@@ -12,11 +12,14 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -134,7 +137,7 @@ public final class InputLoop implements Runnable, Closeable {
 
             // if SSL is enabled, the SSL handler must be added to the pipeline first
             if (sslContext != null) {
-                channel.pipeline().addLast(SSL_HANDLER, sslContext.newHandler(channel.alloc()));
+                channel.pipeline().addLast(SSL_HANDLER, newSslHandler(channel));
             }
 
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
@@ -143,6 +146,22 @@ public final class InputLoop implements Runnable, Closeable {
             if (logger.isDebugEnabled()) {
                 logger.debug(remoteChannelInfo(channel) + ": initialized channel");
             }
+        }
+
+        private SslHandler newSslHandler(final SocketChannel socketChannel) {
+            final InetSocketAddress remoteAddress = socketChannel.remoteAddress();
+            final String peerHost = remoteAddress.getHostString();
+            final int peerPort = remoteAddress.getPort();
+            final SslHandler sslHandler = sslContext.newHandler(socketChannel.alloc(), peerHost, peerPort);
+
+            final SSLEngine engine = sslHandler.engine();
+            engine.setUseClientMode(false);
+
+            final SSLParameters sslParameters = engine.getSSLParameters();
+            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+            engine.setSSLParameters(sslParameters);
+
+            return sslHandler;
         }
 
         @Override

@@ -91,7 +91,7 @@ class TcpHelpers
     key = ( root_key.nil? ? OpenSSL::PKey::RSA.new(2048) : root_key )
     options = { :serial => 2, :subject => "/DC=org/DC=ruby-lang/CN=Ruby#{name}", :key => key, :issuer => root_ca.subject}
     cert = new_certificate(options)
-    add_ca_extensions(cert, nil, root_ca)
+    add_ca_extensions(cert, nil, root_ca, %w(IP:127.0.0.1 IP:0:0:0:0:0:0:0:1))
     if password
       key_text = key.to_pem(OpenSSL::Cipher::AES256.new(:CFB), password)
       [ cert.sign(key, OpenSSL::Digest::SHA256.new), key, key_text ]
@@ -120,7 +120,7 @@ class TcpHelpers
     cert
   end
 
-  def add_ca_extensions(certificate, subject=nil, issuer=nil)
+  def add_ca_extensions(certificate, subject=nil, issuer=nil, san_list=[])
     factory = OpenSSL::X509::ExtensionFactory.new
     factory.subject_certificate = (subject.nil? ? certificate : subject)
     factory.issuer_certificate  = (issuer.nil?  ? certificate : issuer)
@@ -129,6 +129,7 @@ class TcpHelpers
     certificate.add_extension(factory.create_extension("keyUsage","keyCertSign, cRLSign, digitalSignature", true))
     certificate.add_extension(factory.create_extension("subjectKeyIdentifier","hash",false))
     certificate.add_extension(factory.create_extension("authorityKeyIdentifier","keyid:always",false))
+    certificate.add_extension(factory.create_extension('subjectAltName', san_list.join(','))) unless san_list.empty?
   end
 
 end

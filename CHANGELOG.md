@@ -1,3 +1,6 @@
+## 6.3.2
+  - Fix: provide SSL engine with advisory peer and algorithm information [207](https://github.com/logstash-plugins/logstash-input-tcp/issues/207)
+
 ## 6.3.1
   - Fixes a regression in which the ssl_subject was missing for SSL-secured connections in server mode [#199](https://github.com/logstash-plugins/logstash-input-tcp/pull/199)
 
