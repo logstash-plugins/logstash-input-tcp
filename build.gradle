@@ -45,13 +45,11 @@ repositories {
 dependencies {
   testImplementation 'org.apache.logging.log4j:log4j-core:2.17.1'
 
-//  implementation "io.netty:netty-all:${nettyVersion}"
   implementation "io.netty:netty-buffer:${nettyVersion}"
   implementation "io.netty:netty-codec:${nettyVersion}"
   implementation "io.netty:netty-common:${nettyVersion}"
   implementation "io.netty:netty-transport:${nettyVersion}"
   implementation "io.netty:netty-handler:${nettyVersion}"
-
   implementation "io.netty:netty-transport-native-unix-common:${nettyVersion}" // this is needed from Netty 4.1.78.Final on
 
   implementation group: 'commons-io', name: 'commons-io', version: '2.8.0' // used from Netty
