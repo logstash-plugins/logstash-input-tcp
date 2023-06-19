@@ -62,7 +62,7 @@ class LogStash::Inputs::Tcp::DecoderImpl
 
   private
   def extract_sslsubject(channel)
-    return nil unless @tcp.ssl_enable && @tcp.ssl_verify
+    return nil unless @tcp.ssl_peer_verification_enabled?
 
     channel.pipeline().get("ssl-handler").engine().getSession().getPeerPrincipal().getName()
   rescue Exception => e

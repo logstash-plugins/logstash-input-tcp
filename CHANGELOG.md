@@ -1,3 +1,11 @@
+## 6.4.0
+  - Reviewed and deprecated SSL settings to comply with Logstash's naming convention [#213](https://github.com/logstash-plugins/logstash-input-tcp/pull/213)
+    - Deprecated `ssl_enable` in favor of `ssl_enabled`
+    - Deprecated `ssl_cert` in favor of `ssl_certificate`
+    - Deprecated `ssl_verify` in favor of `ssl_client_authentication` when mode is `server`
+    - Deprecated `ssl_verify` in favor of `ssl_verification_mode` when mode is `client`
+  - Added SSL configuration validations
+
 ## 6.3.3
   - bump netty to 4.1.93 [#212](https://github.com/logstash-plugins/logstash-input-tcp/pull/212)
 

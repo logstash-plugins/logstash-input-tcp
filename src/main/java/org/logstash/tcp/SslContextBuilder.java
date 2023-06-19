@@ -22,6 +22,8 @@ import javax.net.ssl.SSLServerSocketFactory;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.Certificate;
@@ -36,6 +38,26 @@ import java.util.Set;
 
 public class SslContextBuilder {
 
+    public enum SslClientAuthentication {
+        NONE(ClientAuth.NONE),
+        OPTIONAL(ClientAuth.OPTIONAL),
+        REQUIRED(ClientAuth.REQUIRE);
+
+        private final ClientAuth clientAuth;
+
+        SslClientAuthentication(ClientAuth clientAuth) {
+            this.clientAuth = clientAuth;
+        }
+
+        public static SslClientAuthentication of(String sslClientAuthentication) {
+            return SslClientAuthentication.valueOf(sslClientAuthentication.toUpperCase());
+        }
+
+        ClientAuth toClientAuth() {
+            return clientAuth;
+        }
+    }
+
     private static final String[] NULL_STRING_ARRAY = new String[0];
 
     private final static Logger logger = LogManager.getLogger(SslContextBuilder.class);
@@ -46,13 +68,11 @@ public class SslContextBuilder {
         );
     }
 
-    private boolean sslEnabled;
-    private boolean shouldVerify;
+    private SslClientAuthentication clientAuthentication = SslClientAuthentication.NONE;
 
-    private String certPath;
-    private String keyPath;
-
-    private char[] keyPassword;
+    private final String certificatePath;
+    private final String keyPath;
+    private final char[] keyPassphrase;
 
     private String[] certificateAuthorities = NULL_STRING_ARRAY;
     private String[] extraChainCerts = NULL_STRING_ARRAY;
@@ -60,47 +80,59 @@ public class SslContextBuilder {
     private String[] supportedProtocols = NULL_STRING_ARRAY;
     private String[] cipherSuites = NULL_STRING_ARRAY;
 
-    public SslContextBuilder setSslEnabled(boolean enabled) {
-        this.sslEnabled = enabled;
+    public SslContextBuilder(String certificatePath, String keyPath, String keyPassphrase) {
+        if (!Files.isReadable(Paths.get(certificatePath))) {
+            throw new IllegalArgumentException(
+                    String.format("Certificate file cannot be read. Please confirm the user running Logstash has permissions to read: %s", certificatePath));
+        }
+
+        if (!Files.isReadable(Paths.get(keyPath))) {
+            throw new IllegalArgumentException(
+                    String.format("Private key file cannot be read. Please confirm the user running Logstash has permissions to read: %s", keyPath));
+        }
+
+        this.keyPath = keyPath;
+        this.certificatePath = certificatePath;
+        this.keyPassphrase = keyPassphrase == null ? null : keyPassphrase.toCharArray();
+    }
+
+    public SslContextBuilder setClientAuthentication(SslClientAuthentication clientAuthentication) {
+        this.clientAuthentication = clientAuthentication;
         return this;
     }
 
-    public SslContextBuilder setShouldVerify(boolean verify) {
-        this.shouldVerify = verify;
-        return this;
-    }
-
-    public SslContextBuilder setSslCert(String path) {
-        this.certPath = path;
-        return this;
-    }
-
-    public SslContextBuilder setSslKey(String path) {
-        this.keyPath = path;
-        return this;
-    }
-
-    public SslContextBuilder setSslKeyPassword(String password) {
-        this.keyPassword = password == null ? null : password.toCharArray();
-        return this;
-    }
-
-    public SslContextBuilder setSslCertificateAuthorities(String[] paths) {
+    public SslContextBuilder setCertificateAuthorities(String[] paths) {
         this.certificateAuthorities = paths;
         return this;
     }
 
-    public SslContextBuilder setSslExtraChainCerts(String[] paths) {
+    public SslContextBuilder setExtraChainCerts(String[] paths) {
         this.extraChainCerts = paths;
         return this;
     }
 
-    public SslContextBuilder setSslSupportedProtocols(String[] protocols) {
+    public SslContextBuilder setSupportedProtocols(String[] protocols) {
         this.supportedProtocols = protocols;
         return this;
     }
 
-    public SslContextBuilder setSslCipherSuites(String[] suites) {
+    String[] getSupportedProtocols() {
+        return supportedProtocols;
+    }
+
+    SslClientAuthentication getClientAuthentication() {
+        return this.clientAuthentication;
+    }
+
+    String[] getCertificateAuthorities(){
+        return certificateAuthorities;
+    }
+    
+    String[] getCipherSuites() {
+        return this.cipherSuites;
+    }
+
+    public SslContextBuilder setCipherSuites(String[] suites) {
         if (suites.length > 0) {
             final Set<String> supportedCipherSuites = new HashSet<>(getSupportedCipherSuites());
             for (String cipher : suites) {
@@ -117,15 +149,6 @@ public class SslContextBuilder {
     }
 
     public SslContext buildContext() throws Exception {
-        if (!sslEnabled) return null;
-
-        if (certPath == null) {
-            throw new IllegalArgumentException("missing ssl_cert");
-        }
-        if (keyPath == null) {
-            throw new IllegalArgumentException("missing ssl_key");
-        }
-
         // NOTE: decrypting openssl key-pair (PEMEncryptedKeyPair) assumes the BC provider
         installBouncyCastleProvider();
 
@@ -136,10 +159,10 @@ public class SslContextBuilder {
 
         // create certificate object
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-        List<Certificate> certChain = getCertificatesFromFile(certPath, certFactory);
+        List<Certificate> certChain = getCertificatesFromFile(certificatePath, certFactory);
         if (certChain.isEmpty()) {
-            logger.warn("Failed to read certificate from path: {}", certPath);
-            throw new IllegalArgumentException("failed to read certificate from ssl_cert path");
+            logger.warn("Failed to read certificate from path: {}", certificatePath);
+            throw new IllegalArgumentException("failed to read certificate from ssl_certificate path");
         }
 
         // convert key from pkcs1 to pkcs8 and get PrivateKey object
@@ -154,11 +177,11 @@ public class SslContextBuilder {
         } else if (obj instanceof PrivateKeyInfo) { // unencrypted pkcs#8
             privateKey = converter.getPrivateKey((PrivateKeyInfo) obj);
         } else if (obj instanceof PEMEncryptedKeyPair) { // encrypted pkcs#1
-            PEMDecryptorProvider decryptor = new JcePEMDecryptorProviderBuilder().build(keyPassword);
+            PEMDecryptorProvider decryptor = new JcePEMDecryptorProviderBuilder().build(keyPassphrase);
             PEMKeyPair keyPair = ((PEMEncryptedKeyPair) obj).decryptKeyPair(decryptor);
             privateKey = converter.getKeyPair(keyPair).getPrivate();
         } else if (obj instanceof PKCS8EncryptedPrivateKeyInfo) { // encrypted pkcs#8
-            InputDecryptorProvider decryptor = new JceOpenSSLPKCS8DecryptorProviderBuilder().build(keyPassword);
+            InputDecryptorProvider decryptor = new JceOpenSSLPKCS8DecryptorProviderBuilder().build(keyPassphrase);
             PrivateKeyInfo keyInfo = ((PKCS8EncryptedPrivateKeyInfo) obj).decryptPrivateKeyInfo(decryptor);
             privateKey = converter.getPrivateKey(keyInfo);
         } else {
@@ -171,7 +194,7 @@ public class SslContextBuilder {
 
         io.netty.handler.ssl.SslContextBuilder sslContextBuilder =
                 io.netty.handler.ssl.SslContextBuilder.forServer(privateKey,
-                        keyPassword == null ? null : new String(keyPassword),
+                        keyPassphrase == null ? null : new String(keyPassphrase),
                         certChain.toArray(new X509Certificate[certChain.size()])
                 );
 
@@ -184,7 +207,7 @@ public class SslContextBuilder {
             sslContextBuilder.trustManager(trustedCerts.toArray(new X509Certificate[trustedCerts.size()]));
         }
 
-        sslContextBuilder.clientAuth(shouldVerify ? ClientAuth.REQUIRE : ClientAuth.NONE);
+        sslContextBuilder.clientAuth(clientAuthentication.toClientAuth());
 
         if (supportedProtocols.length > 0) sslContextBuilder.protocols(supportedProtocols);
         if (cipherSuites.length > 0) sslContextBuilder.ciphers(Arrays.asList(cipherSuites));
@@ -237,5 +260,4 @@ public class SslContextBuilder {
             }
         }
     }
-
 }
