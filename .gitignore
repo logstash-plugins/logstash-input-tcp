@@ -1,5 +1,4 @@
 *.gem
-Gemfile.lock
 .bundle
 vendor
 .idea
@@ -10,4 +9,5 @@ build
 *.ipr
 out
 .rakeTasks
-
+Gemfile.lock
+lib/logstash-input-beats_jars.rb

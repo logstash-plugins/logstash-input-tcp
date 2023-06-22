@@ -429,10 +429,119 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             expect { subject.register }.to_not raise_error
           end
         end
+
+        context "encrypted (AES-156) key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_aes256.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_aes256.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "encrypted (SEED) key" do # algorithm not supported by Sun provider
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_seed.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_seed.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            pending # newer BC should be able to read this
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "encrypted (DES) key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted_des.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted_des.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "encrypted PKCS#8 key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs8.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs8.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        # NOTE: only BC provider can read the legacy (OpenSSL) format
+        context "encrypted PKCS#5 v1.5 key" do # openssl pkcs8 -topk8 -v1 PBE-MD5-DES
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs5v15.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs5v15.key', File.dirname(__FILE__)),
+                "ssl_key_passphrase" => '1234',
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
+
+        context "small (legacy) key" do
+          let(:config) do
+            {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)),
+                "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
+            }
+          end
+
+          it "should register without errors" do
+            expect { subject.register }.to_not raise_error
+          end
+
+        end
       end
     end
 
-    describe "#receive" do
+    describe "#receive", :ecs_compatibility_support do
       shared_examples "receiving events" do
         # TODO(sissel): Implement normal event-receipt tests as as a shared example
       end
@@ -440,7 +549,10 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       context "when ssl_enable is true" do
         let(:input) { subject }
         let(:queue) { Queue.new }
-        before(:each) { subject.register }
+        before(:each) do
+          allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility) if defined?(ecs_compatibility)
+          subject.register
+        end
 
         context "when using a certificate chain" do
           chain_of_certificates = TcpHelpers.new.chain_of_certificates
@@ -459,18 +571,21 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
           let(:sslsocket) { OpenSSL::SSL::SSLSocket.new(tcp, sslcontext) }
           let(:message) { "message to #{port}" }
 
-          context "with a non encrypted private key" do
-            let(:config) do
-              {
+          let(:base_config) do
+            {
                 "host" => "127.0.0.1",
                 "port" => port,
                 "ssl_enable" => true,
                 "ssl_cert" => chain_of_certificates[:b_cert].path,
                 "ssl_key" => chain_of_certificates[:b_key].path,
                 "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
-                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
-                "ssl_verify" => true
-              }
+                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ]
+            }
+          end
+
+          context "with a non encrypted private key" do
+            let(:config) do
+              base_config.merge "ssl_verify" => true
             end
             it "should be able to connect and write data" do
               result = TcpHelpers.pipelineless_input(subject, 1) do
@@ -511,6 +626,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               expect(result.first.get("message")).to eq(message)
             end
           end
+
           context "when using an encrypted private pkcs8 key" do
             let(:config) do
               {
@@ -537,6 +653,141 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               expect(result.first.get("message")).to eq(message)
             end
           end
+
+          context "with a regular TLS setup" do
+            let(:config) do
+              {
+                "host" => "127.0.0.1",
+                "port" => port,
+                "ssl_enable" => true,
+                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_key" => chain_of_certificates[:b_key].path,
+                "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+                "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
+                "ssl_verify" => true
+              }
+            end
+
+            ecs_compatibility_matrix(:disabled,:v1, :v8 => :v1) do |ecs_select|
+              it "extracts the TLS subject from connections" do
+                result = TcpHelpers.pipelineless_input(subject, 1) do
+                  sslsocket.connect
+                  sslsocket.write("#{message}\n")
+                  tcp.flush
+                  sslsocket.close
+                  tcp.close
+                end
+                expect(result.size).to eq(1)
+                event = result.first
+
+                ssl_subject_field = ecs_select[disabled: 'sslsubject', v1:'[@metadata][input][tcp][tls][client][subject]']
+                expect(event.get(ssl_subject_field)).to eq("CN=RubyAA_Cert,DC=ruby-lang,DC=org")
+              end
+            end
+          end
+
+          context "with enforced protocol version" do
+            let(:config) do
+              base_config.merge 'ssl_supported_protocols' => [ tls_version ]
+            end
+
+            let(:tls_version) { 'TLSv1.3' }
+
+            it "should be able to connect and write data" do
+              used_tls_protocol = nil
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                used_tls_protocol = sslsocket.session.to_java(javax.net.ssl.SSLSession).getProtocol
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(used_tls_protocol).to eql tls_version
+            end
+          end
+
+          context "with enforced protocol range" do
+            let(:config) do
+              base_config.merge 'ssl_supported_protocols' => [ 'TLSv1.3', 'TLSv1.2' ]
+            end
+            let(:sslcontext) do
+              super().tap { |ctx| ctx.ssl_version = 'TLSv1.2' }
+            end
+
+            it "should be able to connect and write data" do
+              used_tls_protocol = nil
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                used_tls_protocol = sslsocket.session.to_java(javax.net.ssl.SSLSession).getProtocol
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(used_tls_protocol).to eql 'TLSv1.2'
+            end
+          end if TcpHelpers.tls13_available_by_default? # till CI testing against 6.x
+
+          context "with unsupported client protocol" do
+            let(:config) do
+              base_config.merge 'ssl_supported_protocols' => [ 'TLSv1.2' ]
+            end
+            let(:sslcontext) do
+              super().tap { |ctx| ctx.ssl_version = 'TLSv1.1' }
+            end
+
+            it "should not be able to connect" do
+              TcpHelpers.pipelineless_input(subject, 0) do
+                expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /No appropriate protocol|protocol_version/i)
+                sslsocket.close
+                tcp.close
+              end
+            end
+          end
+
+          context "with specified cipher suites" do
+            let(:config) do
+              base_config.merge 'ssl_cipher_suites' => [ cipher_suite ]
+            end
+
+            let(:cipher_suite) { 'TLS_RSA_WITH_AES_128_GCM_SHA256' }
+
+            it "should be able to connect and write data" do
+              used_cipher_suite = nil
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                used_cipher_suite = sslsocket.session.to_java(javax.net.ssl.SSLSession).getCipherSuite
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              expect(used_cipher_suite).to eql cipher_suite
+            end
+          end
+
+          context "with unsupported client cipher" do
+            let(:config) do
+              base_config.merge 'ssl_cipher_suites' => [ 'TLS_RSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' ]
+            end
+
+            let(:sslcontext) do
+              super().tap { |ctx| ctx.ciphers = [ 'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384', 'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256' ] }
+            end
+
+            it "should not be able to connect" do
+              TcpHelpers.pipelineless_input(subject, 0) do
+                expect { sslsocket.connect }.to raise_error(OpenSSL::SSL::SSLError, /handshake_failure|no cipher match/i)
+                sslsocket.close
+                tcp.close
+              end
+            end
+          end
+
         end
 
         context "with a poorly-behaving client" do
@@ -608,4 +859,83 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       let(:config) { { "port" => port } }
     end
   end
+
+  context 'ssl context (client mode)' do
+
+    let(:chain_of_certificates) do
+      TcpHelpers.new.chain_of_certificates
+    end
+
+    let(:config) do
+      {
+          "host" => "127.0.0.1",
+          "port" => port,
+          "mode" => 'client',
+          "ssl_enable" => true,
+          "ssl_cert" => chain_of_certificates[:b_cert].path,
+          "ssl_key" => chain_of_certificates[:b_key].path,
+          "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
+          "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ]
+      }
+    end
+
+    subject(:plugin) { LogStash::Inputs::Tcp.new(config) }
+
+    let(:ssl_context) { plugin.send :ssl_context }
+
+    context "with cipher suites" do
+      let(:config) do
+        super().merge 'ssl_cipher_suites' => [ cipher_suite ]
+      end
+
+      let(:cipher_suite) { 'TLS_RSA_WITH_AES_128_GCM_SHA256' }
+
+      it "sets ciphers" do
+        cipher_ary = ssl_context.ciphers.first
+        expect( cipher_ary[0] ).to eql 'AES128-GCM-SHA256'
+      end
+
+    end
+
+    context "with forced protocol" do
+      let(:config) do
+        super().merge 'ssl_supported_protocols' => [ 'TLSv1.1' ]
+      end
+
+      it "limits protocol selection" do
+        if OpenSSL::SSL.const_defined? :OP_NO_TLSv1_3
+          ssl_context = subject.send :ssl_context
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_3).to_not eql 0
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_2).to_not eql 0
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_1).to eql 0
+        else
+          ssl_context = OpenSSL::SSL::SSLContext.new
+          allow(subject).to receive(:new_ssl_context).and_return(ssl_context)
+          expect(ssl_context).to receive(:max_version=).with(:'TLS1_2').and_call_original
+          ssl_context = subject.send :ssl_context
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_2).to_not eql 0
+          expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_1).to eql 0
+        end
+      end
+
+    end
+
+    context "with protocol range" do
+      let(:config) do
+        super().merge 'ssl_supported_protocols' => [ 'TLSv1.3', 'TLSv1.1', 'TLSv1.2' ]
+      end
+
+      it "does not limit protocol selection (except min_version)" do
+        ssl_context = OpenSSL::SSL::SSLContext.new
+        allow(subject).to receive(:new_ssl_context).and_return(ssl_context)
+        expect(ssl_context).to receive(:min_version=).with(:'TLS1_1').and_call_original
+        ssl_context = subject.send :ssl_context
+        expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_3).to eql 0 if OpenSSL::SSL.const_defined? :OP_NO_TLSv1_3
+        expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_2).to eql 0
+        expect(ssl_context.options & OpenSSL::SSL::OP_NO_TLSv1_1).to eql 0
+      end
+    end
+
+  end
+
 end

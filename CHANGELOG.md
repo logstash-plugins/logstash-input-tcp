@@ -1,3 +1,42 @@
+## 6.3.3
+  - bump netty to 4.1.93 [#212](https://github.com/logstash-plugins/logstash-input-tcp/pull/212)
+
+## 6.3.2
+  - Update Netty dependency to 4.1.87 [#209](https://github.com/logstash-plugins/logstash-input-tcp/pull/209)
+
+## 6.3.1
+  - Fixes a regression in which the ssl_subject was missing for SSL-secured connections in server mode [#199](https://github.com/logstash-plugins/logstash-input-tcp/pull/199)
+
+## 6.3.0
+  - Feat: ssl_supported_protocols (TLSv1.3) + ssl_cipher_suites [#198](https://github.com/logstash-plugins/logstash-input-tcp/pull/198)
+
+## 6.2.7
+  - Build: skip shadowing jar dependencies [#187](https://github.com/logstash-plugins/logstash-input-tcp/pull/187)
+    * plugin no longer shadows dependencies into its *logstash-input-tcp.jar*
+    * log4j-api is now a provided dependency and is no longer packaged with the plugin
+
+## 6.2.6
+  - [DOC] Fix incorrect pipeline code snippet [#194](https://github.com/logstash-plugins/logstash-input-tcp/pull/194)
+  - Update log4j dependency to 2.17.1 [#196](https://github.com/logstash-plugins/logstash-input-tcp/pull/196)
+
+## 6.2.5
+  - Update log4j dependency to 2.17.0
+
+## 6.2.4
+  - Update Log4j dependency to 2.16, ensuring this plugin's runtime relies only on log4j-api instead 
+    of providing its own log4j-core. [#188](https://github.com/logstash-plugins/logstash-input-tcp/pull/188)
+
+## 6.2.3
+  - Update log4j dependencies [#186](https://github.com/logstash-plugins/logstash-input-tcp/pull/186)
+
+## 6.2.2
+  - Internal: update to Gradle 7 [#184](https://github.com/logstash-plugins/logstash-input-tcp/pull/184)
+  - Internal: relax jruby-openssl upper bound [#185](https://github.com/logstash-plugins/logstash-input-tcp/pull/185)
+
+## 6.2.1
+  - Fix: restore logic to add the Bouncy-Castle security provider at runtime [#181](https://github.com/logstash-plugins/logstash-input-tcp/pull/181)
+    - required to properly read encrypted (legacy) OpenSSL PKCS#5v1.5 keys
+
 ## 6.2.0
  - Added ECS Compatibility Mode [#165](https://github.com/logstash-plugins/logstash-input-tcp/pull/165)
    - When operating in an ECS Compatibility mode, metadata about the connection on which we are receiving data is nested in well-named fields under `[@metadata][input][tcp]` instead of at the root level.
