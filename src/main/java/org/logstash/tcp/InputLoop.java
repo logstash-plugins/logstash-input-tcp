@@ -20,6 +20,8 @@ import org.apache.logging.log4j.Logger;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Plain TCP Server Implementation.
@@ -188,6 +190,8 @@ public final class InputLoop implements Runnable, Closeable {
              */
             private final Logger logger;
 
+            private final List<String> silentErrs = Arrays.asList("Connection reset by peer", "Connection reset");
+
             /**
              * Ctor.
              * @param decoder {@link Decoder} provided by JRuby.
@@ -222,9 +226,8 @@ public final class InputLoop implements Runnable, Closeable {
             private boolean silentException(final Throwable ex) {
                 if (ex instanceof IOException) {
                     final String message = ex.getMessage();
-                    if ("Connection reset by peer".equals(message)) {
-                        return true;
-                    }
+
+                    return silentErrs.stream().anyMatch(message::contains);
                 }
                 return false;
             }
