@@ -226,8 +226,8 @@ public final class InputLoop implements Runnable, Closeable {
             private boolean silentException(final Throwable ex) {
                 if (ex instanceof IOException) {
                     final String message = ex.getMessage();
-
-                    return silentErrs.stream().anyMatch(message::contains);
+                    if (message != null)
+                        return silentErrs.stream().anyMatch(message::contains);
                 }
                 return false;
             }
