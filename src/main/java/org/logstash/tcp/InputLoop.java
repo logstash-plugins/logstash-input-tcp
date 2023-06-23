@@ -20,8 +20,6 @@ import org.apache.logging.log4j.Logger;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Plain TCP Server Implementation.
