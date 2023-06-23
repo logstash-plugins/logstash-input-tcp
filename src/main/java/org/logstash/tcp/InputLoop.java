@@ -188,6 +188,8 @@ public final class InputLoop implements Runnable, Closeable {
              */
             private final Logger logger;
 
+            private static final String CONNECTION_RESET_ERROR_MSG = "Connection reset";
+
             /**
              * Ctor.
              * @param decoder {@link Decoder} provided by JRuby.
@@ -221,7 +223,7 @@ public final class InputLoop implements Runnable, Closeable {
 
             private boolean silentException(final Throwable ex) {
                 if (ex instanceof IOException) {
-                    return ex.getMessage() != null && ex.getMessage().contains("Connection reset");
+                    return ex.getMessage() != null && ex.getMessage().contains(CONNECTION_RESET_ERROR_MSG);
                 }
                 return false;
             }
