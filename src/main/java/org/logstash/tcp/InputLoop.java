@@ -190,8 +190,6 @@ public final class InputLoop implements Runnable, Closeable {
              */
             private final Logger logger;
 
-            private final List<String> silentErrs = Arrays.asList("Connection reset by peer", "Connection reset");
-
             /**
              * Ctor.
              * @param decoder {@link Decoder} provided by JRuby.
@@ -225,9 +223,7 @@ public final class InputLoop implements Runnable, Closeable {
 
             private boolean silentException(final Throwable ex) {
                 if (ex instanceof IOException) {
-                    final String message = ex.getMessage();
-                    if (message != null)
-                        return silentErrs.stream().anyMatch(message::contains);
+                    return ex.getMessage() != null && ex.getMessage().contains("Connection reset");
                 }
                 return false;
             }
