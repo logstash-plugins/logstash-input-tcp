@@ -1,3 +1,6 @@
+## 6.3.3
+  - update netty to 4.1.94 and other dependencies [#216](https://github.com/logstash-plugins/logstash-input-tcp/pull/216)
+
 ## 6.3.4
   - Fix: reduce error logging (to info level) on connection resets [#214](https://github.com/logstash-plugins/logstash-input-tcp/pull/214)
 
