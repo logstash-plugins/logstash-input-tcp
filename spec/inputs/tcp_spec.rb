@@ -549,7 +549,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             }
           end
 
-          it "should raise a configuration error" do
+          it "should raise a configuration error to request also `ssl_key`" do
             expect { subject.register }.to raise_error(LogStash::ConfigurationError, /Using an `ssl_certificate` requires an `ssl_key`/)
           end
         end
@@ -564,7 +564,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             }
           end
 
-          it "should raise a configuration error" do
+          it "should raise a configuration error to request also `ssl_certificate`" do
             expect { subject.register }.to raise_error(LogStash::ConfigurationError, /An `ssl_certificate` is required when using an `ssl_key`/)
           end
         end
