@@ -357,8 +357,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
           {
             "host" => "127.0.0.1",
             "port" => port,
-            "ssl_enable" => true,
-            "ssl_cert" => certificate_file.path,
+            "ssl_enabled" => true,
+            "ssl_certificate" => certificate_file.path,
             "ssl_key" => key_file.path
           }
         end
@@ -411,8 +411,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
               "host" => "127.0.0.1",
               "port" => port,
-              "ssl_enable" => true,
-              "ssl_cert" => certificate_file.path,
+              "ssl_enabled" => true,
+              "ssl_certificate" => certificate_file.path,
               "ssl_key" => key_file.path
             }
           end
@@ -435,8 +435,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => File.expand_path('../fixtures/encrypted_aes256.crt', File.dirname(__FILE__)),
+                "ssl_enabled" => true,
+                "ssl_certificate" => File.expand_path('../fixtures/encrypted_aes256.crt', File.dirname(__FILE__)),
                 "ssl_key" => File.expand_path('../fixtures/encrypted_aes256.key', File.dirname(__FILE__)),
                 "ssl_key_passphrase" => '1234',
             }
@@ -453,8 +453,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => File.expand_path('../fixtures/encrypted_seed.crt', File.dirname(__FILE__)),
+                "ssl_enabled" => true,
+                "ssl_certificate" => File.expand_path('../fixtures/encrypted_seed.crt', File.dirname(__FILE__)),
                 "ssl_key" => File.expand_path('../fixtures/encrypted_seed.key', File.dirname(__FILE__)),
                 "ssl_key_passphrase" => '1234',
             }
@@ -472,8 +472,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => File.expand_path('../fixtures/encrypted_des.crt', File.dirname(__FILE__)),
+                "ssl_enabled" => true,
+                "ssl_certificate" => File.expand_path('../fixtures/encrypted_des.crt', File.dirname(__FILE__)),
                 "ssl_key" => File.expand_path('../fixtures/encrypted_des.key', File.dirname(__FILE__)),
                 "ssl_key_passphrase" => '1234',
             }
@@ -490,8 +490,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs8.crt', File.dirname(__FILE__)),
+                "ssl_enabled" => true,
+                "ssl_certificate" => File.expand_path('../fixtures/encrypted-pkcs8.crt', File.dirname(__FILE__)),
                 "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs8.key', File.dirname(__FILE__)),
                 "ssl_key_passphrase" => '1234',
             }
@@ -509,8 +509,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => File.expand_path('../fixtures/encrypted-pkcs5v15.crt', File.dirname(__FILE__)),
+                "ssl_enabled" => true,
+                "ssl_certificate" => File.expand_path('../fixtures/encrypted-pkcs5v15.crt', File.dirname(__FILE__)),
                 "ssl_key" => File.expand_path('../fixtures/encrypted-pkcs5v15.key', File.dirname(__FILE__)),
                 "ssl_key_passphrase" => '1234',
             }
@@ -527,8 +527,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)),
+                "ssl_enabled" => true,
+                "ssl_certificate" => File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)),
                 "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
             }
           end
@@ -538,6 +538,166 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
           end
 
         end
+
+        context "with only ssl_certificate set" do
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "ssl_enabled" => true,
+              "ssl_certificate" => File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)),
+            }
+          end
+
+          it "should raise a configuration error to request also `ssl_key`" do
+            expect { subject.register }.to raise_error(LogStash::ConfigurationError, /Using an `ssl_certificate` requires an `ssl_key`/)
+          end
+        end
+
+        context "with only ssl_key set" do
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "ssl_enabled" => true,
+              "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
+            }
+          end
+
+          it "should raise a configuration error to request also `ssl_certificate`" do
+            expect { subject.register }.to raise_error(LogStash::ConfigurationError, /An `ssl_certificate` is required when using an `ssl_key`/)
+          end
+        end
+
+        context "and mode is server" do
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "mode" => 'server',
+              "ssl_enabled" => true,
+              "ssl_certificate" => File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)),
+              "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
+            }
+          end
+
+          context "with no ssl_certificate" do
+            let(:config) { super().reject { |k| "ssl_key".eql?(k) || "ssl_certificate".eql?(k) } }
+
+            it "should raise a configuration error" do
+              expect { subject.register }.to raise_error(LogStash::ConfigurationError, /An `ssl_certificate` is required when `ssl_enabled` => true/)
+            end
+          end
+
+          context "with ssl_client_authentication = `none` and no ssl_certificate_authorities" do
+            let(:config) { super().merge(
+              'ssl_client_authentication' => 'none',
+              'ssl_certificate_authorities' => []
+            ) }
+
+            it "should register without errors" do
+              expect { subject.register }.to_not raise_error
+            end
+          end
+
+          context "with deprecated ssl_verify = true and no ssl_certificate_authorities" do
+            let(:config) { super().merge(
+              'ssl_verify' => true,
+              'ssl_certificate_authorities' => []
+            ) }
+
+            it "should register without errors" do
+              expect { subject.register }.to_not raise_error
+            end
+          end
+
+          %w[required optional].each do |ssl_client_authentication|
+            context "with ssl_client_authentication = `#{ssl_client_authentication}` and no ssl_certificate_authorities" do
+              let(:config) { super().merge(
+                'ssl_client_authentication' => ssl_client_authentication,
+                'ssl_certificate_authorities' => []
+              ) }
+
+              it "should raise a configuration error" do
+                expect { subject.register }.to raise_error(LogStash::ConfigurationError, /An `ssl_certificate_authorities` is required when `ssl_client_authentication` => `#{ssl_client_authentication}`/)
+              end
+            end
+          end
+
+          context "with ssl_verification_mode" do
+            let(:config) do
+              super().merge 'ssl_verification_mode' => 'full'
+            end
+
+            it "should raise a configuration error" do
+              expect{subject.register}.to raise_error(LogStash::ConfigurationError, /`ssl_verification_mode` must not be configured when mode is `server`, use `ssl_client_authentication` instead/)
+            end
+          end
+        end
+
+        context "with deprecated settings" do
+          let(:ssl_verify) { true }
+          let(:certificate_path) { File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)) }
+          let(:config) do
+            {
+              "host" => "127.0.0.1",
+              "port" => port,
+              "ssl_enable" => true,
+              "ssl_cert" => certificate_path,
+              "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
+              "ssl_verify" => ssl_verify
+            }
+          end
+
+          context "and mode is server" do
+            let(:config) { super().merge("mode" => 'server') }
+            [true, false].each do |verify|
+              context "and ssl_verify is #{verify}" do
+                let(:ssl_verify) { verify }
+
+                it "should set new configs params" do
+                  subject.register
+                  expect(subject.params).to match hash_including(
+                    "ssl_enabled" => true,
+                    "ssl_certificate" => certificate_path,
+                    "ssl_client_authentication" => verify ? 'required' : 'none')
+                end
+
+                it "should set new configs variables" do
+                  subject.register
+                  expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
+                  expect(subject.instance_variable_get(:@ssl_client_authentication)).to eql(verify ? 'required' : 'none')
+                  expect(subject.instance_variable_get(:@ssl_certificate)).to eql(certificate_path)
+                end
+              end
+            end
+          end
+
+          context "and mode is client" do
+            let(:config) { super().merge("mode" => 'client') }
+            [true, false].each do |verify|
+              context "and ssl_verify is #{verify}" do
+                let(:ssl_verify) { verify }
+
+                it "should set new configs params" do
+                  subject.register
+                  expect(subject.params).to match hash_including(
+                    "ssl_enabled" => true,
+                    "ssl_certificate" => certificate_path,
+                    "ssl_verification_mode" => verify ? 'full' : 'none'
+                  )
+                end
+
+                it "should set new configs variables" do
+                  subject.register
+                  expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
+                  expect(subject.instance_variable_get(:@ssl_verification_mode)).to eql(verify ? 'full' : 'none')
+                  expect(subject.instance_variable_get(:@ssl_certificate)).to eql(certificate_path)
+                end
+              end
+            end
+          end
+        end
       end
     end
 
@@ -546,7 +706,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         # TODO(sissel): Implement normal event-receipt tests as as a shared example
       end
 
-      context "when ssl_enable is true" do
+      context "when ssl_enabled is true" do
         let(:input) { subject }
         let(:queue) { Queue.new }
         before(:each) do
@@ -575,8 +735,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_enabled" => true,
+                "ssl_certificate" => chain_of_certificates[:b_cert].path,
                 "ssl_key" => chain_of_certificates[:b_key].path,
                 "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
                 "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ]
@@ -605,13 +765,13 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => chain_of_certificates[:be_cert].path,
+                "ssl_enabled" => true,
+                "ssl_certificate" => chain_of_certificates[:be_cert].path,
                 "ssl_key" => chain_of_certificates[:be_key].path,
                 "ssl_key_passphrase" => "passpasspassword",
                 "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
                 "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
-                "ssl_verify" => true
+                "ssl_client_authentication" => 'required'
               }
             end
             it "should be able to connect and write data" do
@@ -632,13 +792,13 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => chain_of_certificates[:be_cert].path,
+                "ssl_enabled" => true,
+                "ssl_certificate" => chain_of_certificates[:be_cert].path,
                 "ssl_key" => chain_of_certificates[:be_key_pkcs8].path,
                 "ssl_key_passphrase" => "passpasspassword",
                 "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
                 "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
-                "ssl_verify" => true
+                "ssl_client_authentication" => 'required'
               }
             end
             it "should be able to connect and write data" do
@@ -659,12 +819,12 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               {
                 "host" => "127.0.0.1",
                 "port" => port,
-                "ssl_enable" => true,
-                "ssl_cert" => chain_of_certificates[:b_cert].path,
+                "ssl_enabled" => true,
+                "ssl_certificate" => chain_of_certificates[:b_cert].path,
                 "ssl_key" => chain_of_certificates[:b_key].path,
                 "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
                 "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ],
-                "ssl_verify" => true
+                "ssl_client_authentication" => 'required'
               }
             end
 
@@ -871,8 +1031,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
           "host" => "127.0.0.1",
           "port" => port,
           "mode" => 'client',
-          "ssl_enable" => true,
-          "ssl_cert" => chain_of_certificates[:b_cert].path,
+          "ssl_enabled" => true,
+          "ssl_certificate" => chain_of_certificates[:b_cert].path,
           "ssl_key" => chain_of_certificates[:b_key].path,
           "ssl_extra_chain_certs" => [ chain_of_certificates[:a_cert].path ],
           "ssl_certificate_authorities" => [ chain_of_certificates[:root_ca].path ]
@@ -936,6 +1096,15 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       end
     end
 
+    context "with ssl_client_authentication" do
+      let(:config) do
+        super().merge 'ssl_client_authentication' => 'required'
+      end
+
+      it "should raise a configuration error" do
+        expect{subject.register}.to raise_error(LogStash::ConfigurationError, /`ssl_client_authentication` must not be configured when mode is `client`, use `ssl_verification_mode` instead/)
+      end
+    end
   end
 
 end
