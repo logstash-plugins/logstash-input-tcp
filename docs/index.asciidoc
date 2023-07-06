@@ -229,7 +229,7 @@ to the connecting clients.
   * There is no default value for this setting.
 
 Path to certificate in PEM format. This certificate will be presented
-to the connecting clients.
+to the other part of the TLS connection.
 
 [id="plugins-{type}s-{plugin}-ssl_certificate_authorities"]
 ===== `ssl_certificate_authorities`
@@ -259,8 +259,8 @@ NOTE: To check the supported cipher suites locally run the following script: `$L
   * Default value is `required`
 
 Controls the server's behavior in regard to requesting a certificate from client connections:
-`required` forces a client to present a certificate, while `optional` requests a client certificate
-but the client is not required to present one. Defaults to `none`, which disables the client authentication.
+`none` disables the client authentication. `required` forces a client to present a certificate, while `optional` requests a client certificate
+but the client is not required to present one.
 
 When mutual TLS is enabled (`optional` or `required`), the certificate presented by the client must be signed by trusted
 <<plugins-{type}s-{plugin}-ssl_certificate_authorities>> (CAs).

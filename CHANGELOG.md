@@ -6,6 +6,12 @@
     - Deprecated `ssl_verify` in favor of `ssl_verification_mode` when mode is `client`
   - Added SSL configuration validations
 
+## 6.3.5
+  - update netty to 4.1.94 and other dependencies [#216](https://github.com/logstash-plugins/logstash-input-tcp/pull/216)
+
+## 6.3.4
+  - Fix: reduce error logging (to info level) on connection resets [#214](https://github.com/logstash-plugins/logstash-input-tcp/pull/214)
+
 ## 6.3.3
   - bump netty to 4.1.93 [#212](https://github.com/logstash-plugins/logstash-input-tcp/pull/212)
 
