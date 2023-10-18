@@ -1,5 +1,5 @@
 ## 6.4.1
-  - update netty to 4.1.100 and other dependencies [#217](https://github.com/logstash-plugins/logstash-input-tcp/pull/217)
+  - update netty to 4.1.100 [#217](https://github.com/logstash-plugins/logstash-input-tcp/pull/217)
 
 ## 6.4.0
   - Reviewed and deprecated SSL settings to comply with Logstash's naming convention [#213](https://github.com/logstash-plugins/logstash-input-tcp/pull/213)
