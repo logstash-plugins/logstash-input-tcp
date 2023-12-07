@@ -132,12 +132,17 @@ public final class InputLoop implements Runnable, Closeable {
         protected void initChannel(final SocketChannel channel) throws Exception {
             Decoder localCopy = decoder.copy();
 
-            // if SSL is enabled, the SSL handler must be added to the pipeline first
+            // if SSL is enabled, the SSL handler must be added to the pipeline FIRST
             if (sslContext != null) {
-                channel.pipeline().addLast(SSL_HANDLER, sslContext.newHandler(channel.alloc()));
+                channel.pipeline().addFirst(SSL_HANDLER, sslContext.newHandler(channel.alloc()));
             }
 
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
+
+            // disable AUTO_READ and use ThrottleReleaseHandler as LAST handler
+            channel.config().setAutoRead(false);
+            channel.pipeline().addLast(new ThrottleReleaseHandler());
+
             channel.closeFuture().addListener(new FlushOnCloseListener(localCopy));
 
             if (logger.isDebugEnabled()) {
@@ -149,6 +154,28 @@ public final class InputLoop implements Runnable, Closeable {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             logger.error("Error in Netty input handler: " + cause);
             super.exceptionCaught(ctx, cause);
+        }
+
+        /**
+         * This {@link ThrottleReleaseHandler} is a handler that marks the channel eligible for
+         * reading when the channel first becomes active or has completed a read operation, and
+         * is what enables this plugin to apply TCP back-pressure when it is blocked instead of
+         * reading bytes into buffers that will vanish when we OOM.
+         *
+         * <p>It requires the channel to be configured <em>without</em> {@code AUTO_READ}</p>
+         */
+        private static final class ThrottleReleaseHandler extends ChannelInboundHandlerAdapter {
+            @Override
+            public void channelActive(final ChannelHandlerContext ctx) throws Exception {
+                super.channelActive(ctx);
+                ctx.channel().read();
+            }
+
+            @Override
+            public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
+                super.channelReadComplete(ctx);
+                ctx.channel().read();
+            }
         }
 
         /**
