@@ -29,7 +29,7 @@ version Files.readAllLines(Paths.get("version")).first()
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 
-String nettyVersion = '4.1.100.Final'
+String nettyVersion = '4.1.108.Final'
 String junitVersion = '5.9.2'
 
 buildscript {
