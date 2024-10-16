@@ -46,8 +46,8 @@ java {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
 
-String nettyVersion = '4.1.109.Final'
-String junitVersion = '5.9.2'
+String nettyVersion = '4.1.114.Final'
+String junitVersion = '5.11.2'
 
 
 
@@ -64,10 +64,10 @@ dependencies {
   implementation "io.netty:netty-handler:${nettyVersion}"
   implementation "io.netty:netty-transport-native-unix-common:${nettyVersion}" // this is needed from Netty 4.1.78.Final on
 
-  implementation group: 'commons-io', name: 'commons-io', version: '2.13.0' // used from Netty
+  implementation group: 'commons-io', name: 'commons-io', version: '2.17.0' // used from Netty
   compileOnly 'org.apache.logging.log4j:log4j-api:2.17.1' // provided by Logstash
-  compileOnly group: 'org.jruby', name: 'jruby-core', version: "9.4.3.0" // provided by Logstash
-  compileOnly group: 'org.bouncycastle', name: 'bcpkix-jdk18on', version: "1.71"  // provided by Logstash (JRuby-OpenSSL)
+  compileOnly group: 'org.jruby', name: 'jruby-core', version: "9.4.8.0" // provided by Logstash
+  compileOnly group: 'org.bouncycastle', name: 'bcpkix-jdk18on', version: "1.78.1"  // provided by Logstash (JRuby-OpenSSL)
 }
 
 test {
