@@ -1,5 +1,5 @@
 ## 6.4.4
-  - update netty to 4.1.115 TODO
+  - update netty to 4.1.115 [#227](https://github.com/logstash-plugins/logstash-input-tcp/pull/227)
 
 ## 6.4.3
   - update dependencies for tcp input [#224](https://github.com/logstash-plugins/logstash-input-tcp/pull/224)
