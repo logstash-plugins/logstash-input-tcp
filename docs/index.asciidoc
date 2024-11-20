@@ -28,45 +28,46 @@ Like stdin and file inputs, each event is assumed to be one line of text.
 Can either accept connections from clients or connect to a server,
 depending on `mode`.
 
-===== Accepting log4j2 logs
+===== Accepting Log4j 2 logs
 
-Log4j2 can send JSON over a socket, and we can use that combined with our tcp
-input to accept the logs. 
+Log4j 2 can write ECS-compliant JSON-formatted log events to a TCP socket.
+We can combine with our TCP input to accept the logs from applications using Log4j 2.
 
-First, we need to configure your application to send logs in JSON over a
-socket. The following log4j2.xml accomplishes this task.
+First, we need to configure your application to write JSON-formatted logs to a TCP socket:
 
-Note, you will want to change the `host` and `port` settings in this
-configuration to match your needs.
+.Example `log4j2.xml` configuration for writing JSON-formatted logs to Logstash TCP input
+[source,xml]
+----
+<Configuration xmlns="https://logging.apache.org/xml/ns"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="
+                       https://logging.apache.org/xml/ns
+                       https://logging.apache.org/xml/ns/log4j-config-2.xsd">
+  <Appenders>
+    <Socket name="SOCKET" host="localhost" port="12345"> <!--1-->
+      <JsonTemplateLayout <!--2-->
+          eventTemplateUri="classpath:EcsLayout.json" <!--3-->
+          nullEventDelimiterEnabled="true"/> <!--4-->
+    </Socket>
+  </Appenders>
+  <Loggers>
+    <Root level="INFO">
+      <AppenderRef ref="SOCKET"/>
+    </Root>
+  </Loggers>
+</Configuration>
+----
+<1> Using Socket Appender to write logs to a TCP socket – make sure to *change the `host` attribute* to match your setup
+<2> Using https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[JSON Template Layout] to encode log events in JSON
+<3> Using the ECS (Elastic Common Schema) layout bundled with JSON Template Layout
+<4> Configuring that written log events should be terminated with a null (i.e., `\0`) character
 
-    <Configuration>
-      <Appenders>
-         <Socket name="Socket" host="localhost" port="12345">
-           <JsonLayout compact="true" eventEol="true" />
-        </Socket>
-      </Appenders>
-      <Loggers>
-        <Root level="info">
-          <AppenderRef ref="Socket"/>
-        </Root>
-      </Loggers>
-    </Configuration>
-
-To accept this in Logstash, you will want tcp input and a date filter:
+To accept this in Logstash, you will want a TCP input:
 
     input {
       tcp {
         port => 12345
         codec => json
-      }
-    }
-
-and add a date filter to take log4j2's `timeMillis` field and use it as the
-event timestamp
-
-    filter {
-      date {
-        match => [ "timeMillis", "UNIX_MS" ]
       }
     }
 
