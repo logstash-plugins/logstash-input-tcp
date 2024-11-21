@@ -90,9 +90,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         aggregate_failures("event #{i}") do
           expect(event.get("message")).to eq("#{i} ☹")
           expect(event.get(ecs_select[disabled: "host", v1: "[@metadata][input][tcp][source][name]"])).to eq("localhost").or eq("ip6-localhost")
-          ip_address = event.get(ecs_select[disabled: "[@metadata][ip_address]", v1: "[@metadata][input][tcp][source][ip]"])
-          # Account for both ipv4 or ipv6 localhost
-          expect(["127.0.0.1", "::1", "0:0:0:0:0:0:0:1"]).to include(ip_address)
+          expect(event.get(ecs_select[disabled: "[@metadata][ip_address]", v1: "[@metadata][input][tcp][source][ip]"])).to eq('127.0.0.1')
         end
       end
     end
