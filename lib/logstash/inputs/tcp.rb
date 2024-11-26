@@ -6,7 +6,6 @@ require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
 require 'logstash/plugin_mixins/ecs_compatibility_support'
-require "logstash/plugin_mixins/normalize_config_support"
 
 require "socket"
 require "openssl"
@@ -68,8 +67,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   # ecs_compatibility option, provided by Logstash core or the support adapter.
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
-
-  include LogStash::PluginMixins::NormalizeConfigSupport
 
   config_name "tcp"
 
@@ -366,7 +363,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def provided_ssl_enabled_config_name
     original_params.include?('ssl_enable') ? 'ssl_enable' : 'ssl_enabled'
   end
-  
+
   def server?
     @mode == "server"
   end
