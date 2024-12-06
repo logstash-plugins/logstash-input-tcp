@@ -6,7 +6,6 @@ require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
 require 'logstash/plugin_mixins/ecs_compatibility_support'
-require "logstash/plugin_mixins/normalize_config_support"
 
 require "socket"
 require "openssl"
@@ -69,8 +68,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # ecs_compatibility option, provided by Logstash core or the support adapter.
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
 
-  include LogStash::PluginMixins::NormalizeConfigSupport
-
   config_name "tcp"
 
   default :codec, "line"
@@ -91,8 +88,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt
   config :proxy_protocol, :validate => :boolean, :default => false
 
-  # Enable SSL (must be set for other `ssl_` options to take effect).
-  config :ssl_enable, :validate => :boolean, :default => false, :deprecated => "Use 'ssl_enabled' instead."
 
   # Enable SSL (must be set for other `ssl_` options to take effect).
   config :ssl_enabled, :validate => :boolean, :default => false
@@ -104,9 +99,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # This option needs to be used with `ssl_certificate_authorities` and a defined list of CAs.
   config :ssl_client_authentication, :validate => %w[none optional required], :default => 'required'
 
-  # Verify the identity of the other end of the SSL connection against the CA.
-  # For input, sets the field `sslsubject` to that of the client certificate.
-  config :ssl_verify, :validate => :boolean, :default => true, :deprecated => "Use 'ssl_client_authentication' when mode is 'server' or 'ssl_verification_mode' when mode is 'client'"
 
   # Options to verify the server's certificate.
   # "full": validates that the provided certificate has an issue date that’s within the not_before and not_after dates;
@@ -116,8 +108,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   config :ssl_verification_mode, :validate => %w[full none], :default => 'full'
 
   # SSL certificate path
-  config :ssl_cert, :validate => :path, :deprecated => "Use 'ssl_certificate' instead."
-
   # SSL certificate path
   config :ssl_certificate, :validate => :path
 
@@ -148,6 +138,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   # Option to allow users to avoid DNS Reverse Lookup.
   config :dns_reverse_lookup_enabled, :validate => :boolean, :default => true
 
+  # Obsolete SSL Settings
+  config :ssl_enable, :obsolete => "Use 'ssl_enabled' instead."
+  config :ssl_verify, :obsolete => "Use 'ssl_client_authentication' when mode is 'server' or 'ssl_verification_mode' when mode is 'client'"
+  config :ssl_cert, :obsolete => "Use 'ssl_certificate' instead."
+
+
+
   # Monkey patch TCPSocket and SSLSocket to include socket peer
   # @private
   def self.patch_socket_peer!
@@ -163,7 +160,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     super(*args)
 
     setup_fields!
-    setup_ssl_params!
 
     self.class.patch_socket_peer!
 
@@ -366,35 +362,6 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   def provided_ssl_enabled_config_name
     original_params.include?('ssl_enable') ? 'ssl_enable' : 'ssl_enabled'
-  end
-
-  def setup_ssl_params!
-    @ssl_enabled = normalize_config(:ssl_enabled) do |normalizer|
-      normalizer.with_deprecated_alias(:ssl_enable)
-    end
-
-    @ssl_certificate = normalize_config(:ssl_certificate) do |normalizer|
-      normalizer.with_deprecated_alias(:ssl_cert)
-    end
-
-    if server?
-      @ssl_client_authentication = normalize_config(:ssl_client_authentication) do |normalizer|
-        normalizer.with_deprecated_mapping(:ssl_verify) do |ssl_verify|
-          ssl_verify == true ? "required" : "none"
-        end
-      end
-    else
-      @ssl_verification_mode = normalize_config(:ssl_verification_mode) do |normalize|
-        normalize.with_deprecated_mapping(:ssl_verify) do |ssl_verify|
-          ssl_verify == true ? "full" : "none"
-        end
-      end
-    end
-
-    params['ssl_enabled'] = @ssl_enabled unless @ssl_enabled.nil?
-    params['ssl_certificate'] = @ssl_certificate unless @ssl_certificate.nil?
-    params['ssl_verification_mode'] = @ssl_verification_mode unless @ssl_verification_mode.nil?
-    params['ssl_client_authentication'] = @ssl_client_authentication unless @ssl_client_authentication.nil?
   end
 
   def server?
