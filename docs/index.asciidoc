@@ -339,7 +339,7 @@ keep alive setting for the underlying socket.
 [id="plugins-{type}s-{plugin}-obsolete-options"]
 ==== TCP Input Obsolete Configuration Options
 
-WARNING: As of version `6.0.0` of this plugin, the following configuration options are no longer available,
+WARNING: As of version `7.0.0` of this plugin, the following configuration options are no longer available,
 and have been replaced by the following options:
 
 

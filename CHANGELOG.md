@@ -4,7 +4,7 @@
     - `ssl_cert`, which should be replaced by `ssl_certificate`
     - `ssl_enable`, which should be replaced by `ssl_enabled`
     - `ssl_verify`, which should be replaced by `ssl_client_authentication` when `mode` is `server` or `ssl_verification_mode`when mode is `client`
-    - [xxx](https://github.com/logstash-plugins/logstash-input-tcp/pull/xxx)
+    - [228](https://github.com/logstash-plugins/logstash-input-tcp/pull/228)
 
 ## 6.4.4
   - update netty to 4.1.115 [#227](https://github.com/logstash-plugins/logstash-input-tcp/pull/227)
