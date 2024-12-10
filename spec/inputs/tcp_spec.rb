@@ -54,37 +54,22 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
     end
   end
 
-  describe 'handling obsolete settings for client mode' do
-    [{:name => 'ssl_cert', :replacement => 'ssl_certificate', :sample_value => "certificate_path"},
-     {:name => 'ssl_enable', :replacement => 'ssl_enabled', :sample_value => true},
-     {:name => 'ssl_verify', :replacement => 'ssl_client_authentication', :sample_value => 'peer'}].each do | obsolete_setting |
-      context "with obsolete #{obsolete_setting[:name]}" do
-        let(:config) { { "port" => port } }
-        let (:deprecated_config) do
-          config.merge({obsolete_setting[:name] => obsolete_setting[:sample_value]})
-        end
+  ['client', 'server'].each do | mode|
+    describe "handling obsolete settings for #{mode} mode" do
+      [{:name => 'ssl_cert', :replacement => 'ssl_certificate', :sample_value => "certificate_path"},
+       {:name => 'ssl_enable', :replacement => 'ssl_enabled', :sample_value => true},
+       {:name => 'ssl_verify', :replacement => 'ssl_client_authentication', :sample_value => 'peer'}].each do | obsolete_setting |
+        context "with obsolete #{obsolete_setting[:name]}" do
+          let(:config) { { "mode" => mode, "port" => port } }
+          let (:deprecated_config) do
+            config.merge({obsolete_setting[:name] => obsolete_setting[:sample_value]})
+          end
 
-        it "should raise a config error with the appropriate message" do
-          expect { LogStash::Inputs::Tcp.new(deprecated_config).register }.to raise_error LogStash::ConfigurationError, /The setting `#{obsolete_setting[:name]}` in plugin `tcp` is obsolete and is no longer available. Use '#{obsolete_setting[:replacement]}'/i
+          it "should raise a config error with the appropriate message" do
+            expect { LogStash::Inputs::Tcp.new(deprecated_config).register }.to raise_error LogStash::ConfigurationError, /The setting `#{obsolete_setting[:name]}` in plugin `tcp` is obsolete and is no longer available. Use '#{obsolete_setting[:replacement]}'/i
+          end
         end
       end
-    end
-  end
-
-  describe 'handling obsolete settings for server mode' do
-    [{:name => 'ssl_cert', :replacement => 'ssl_certificate', :sample_value => "certificate_path"},
-     {:name => 'ssl_enable', :replacement => 'ssl_enabled', :sample_value => true},
-     {:name => 'ssl_verify', :replacement => 'ssl_client_authentication', :sample_value => 'peer'}].each do | obsolete_setting |
-          context "with obsolete #{obsolete_setting[:name]}" do
-            let(:config) { { "port" => port } }
-            let (:deprecated_config) do
-              config.merge({obsolete_setting[:name] => obsolete_setting[:sample_value]})
-            end
-
-            it "should raise a config error with the appropriate message" do
-              expect { LogStash::Inputs::Tcp.new(deprecated_config).register }.to raise_error LogStash::ConfigurationError, /The setting `#{obsolete_setting[:name]}` in plugin `tcp` is obsolete and is no longer available. Use '#{obsolete_setting[:replacement]}'/i
-            end
-          end
     end
   end
 
