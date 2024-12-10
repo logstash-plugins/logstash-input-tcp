@@ -54,6 +54,25 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
     end
   end
 
+  ['client', 'server'].each do | mode|
+    describe "handling obsolete settings for #{mode} mode" do
+      [{:name => 'ssl_cert', :replacement => 'ssl_certificate', :sample_value => "certificate_path"},
+       {:name => 'ssl_enable', :replacement => 'ssl_enabled', :sample_value => true},
+       {:name => 'ssl_verify', :replacement => 'ssl_client_authentication', :sample_value => 'peer'}].each do | obsolete_setting |
+        context "with obsolete #{obsolete_setting[:name]}" do
+          let(:config) { { "mode" => mode, "port" => port } }
+          let (:deprecated_config) do
+            config.merge({obsolete_setting[:name] => obsolete_setting[:sample_value]})
+          end
+
+          it "should raise a config error with the appropriate message" do
+            expect { LogStash::Inputs::Tcp.new(deprecated_config).register }.to raise_error LogStash::ConfigurationError, /The setting `#{obsolete_setting[:name]}` in plugin `tcp` is obsolete and is no longer available. Use '#{obsolete_setting[:replacement]}'/i
+          end
+        end
+      end
+    end
+  end
+
   ecs_compatibility_matrix(:disabled,:v1, :v8 => :v1) do |ecs_select|
     before(:each) do
       allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility)
@@ -602,17 +621,6 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             end
           end
 
-          context "with deprecated ssl_verify = true and no ssl_certificate_authorities" do
-            let(:config) { super().merge(
-              'ssl_verify' => true,
-              'ssl_certificate_authorities' => []
-            ) }
-
-            it "should register without errors" do
-              expect { subject.register }.to_not raise_error
-            end
-          end
-
           %w[required optional].each do |ssl_client_authentication|
             context "with ssl_client_authentication = `#{ssl_client_authentication}` and no ssl_certificate_authorities" do
               let(:config) { super().merge(
@@ -633,70 +641,6 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
             it "should raise a configuration error" do
               expect{subject.register}.to raise_error(LogStash::ConfigurationError, /`ssl_verification_mode` must not be configured when mode is `server`, use `ssl_client_authentication` instead/)
-            end
-          end
-        end
-
-        context "with deprecated settings" do
-          let(:ssl_verify) { true }
-          let(:certificate_path) { File.expand_path('../fixtures/small.crt', File.dirname(__FILE__)) }
-          let(:config) do
-            {
-              "host" => "127.0.0.1",
-              "port" => port,
-              "ssl_enable" => true,
-              "ssl_cert" => certificate_path,
-              "ssl_key" => File.expand_path('../fixtures/small.key', File.dirname(__FILE__)),
-              "ssl_verify" => ssl_verify
-            }
-          end
-
-          context "and mode is server" do
-            let(:config) { super().merge("mode" => 'server') }
-            [true, false].each do |verify|
-              context "and ssl_verify is #{verify}" do
-                let(:ssl_verify) { verify }
-
-                it "should set new configs params" do
-                  subject.register
-                  expect(subject.params).to match hash_including(
-                    "ssl_enabled" => true,
-                    "ssl_certificate" => certificate_path,
-                    "ssl_client_authentication" => verify ? 'required' : 'none')
-                end
-
-                it "should set new configs variables" do
-                  subject.register
-                  expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
-                  expect(subject.instance_variable_get(:@ssl_client_authentication)).to eql(verify ? 'required' : 'none')
-                  expect(subject.instance_variable_get(:@ssl_certificate)).to eql(certificate_path)
-                end
-              end
-            end
-          end
-
-          context "and mode is client" do
-            let(:config) { super().merge("mode" => 'client') }
-            [true, false].each do |verify|
-              context "and ssl_verify is #{verify}" do
-                let(:ssl_verify) { verify }
-
-                it "should set new configs params" do
-                  subject.register
-                  expect(subject.params).to match hash_including(
-                    "ssl_enabled" => true,
-                    "ssl_certificate" => certificate_path,
-                    "ssl_verification_mode" => verify ? 'full' : 'none'
-                  )
-                end
-
-                it "should set new configs variables" do
-                  subject.register
-                  expect(subject.instance_variable_get(:@ssl_enabled)).to eql(true)
-                  expect(subject.instance_variable_get(:@ssl_verification_mode)).to eql(verify ? 'full' : 'none')
-                  expect(subject.instance_variable_get(:@ssl_certificate)).to eql(certificate_path)
-                end
-              end
             end
           end
         end
@@ -747,7 +691,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
           context "with a non encrypted private key" do
             let(:config) do
-              base_config.merge "ssl_verify" => true
+              base_config.merge "ssl_client_authentication" => "required"
             end
             it "should be able to connect and write data" do
               result = TcpHelpers.pipelineless_input(subject, 1) do
