@@ -21,6 +21,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import static org.logstash.tcp.util.DaemonThreadFactory.daemonThreadFactory;
+
 /**
  * Plain TCP Server Implementation.
  */
@@ -66,13 +68,13 @@ public final class InputLoop implements Runnable, Closeable {
      * @param decoder {@link Decoder} provided by Jruby
      * @param keepAlive set to true to instruct the socket to issue TCP keep alive
      */
-    public InputLoop(final String host, final int port, final Decoder decoder, final boolean keepAlive,
+    public InputLoop(final String id, final String host, final int port, final Decoder decoder, final boolean keepAlive,
                      final SslContext sslContext) {
         this.sslContext = sslContext;
         this.host = host;
         this.port = port;
-        worker = new NioEventLoopGroup();
-        boss = new NioEventLoopGroup(1);
+        boss = new NioEventLoopGroup(1, daemonThreadFactory(id + "-bossGroup"));
+        worker = new NioEventLoopGroup(daemonThreadFactory(id + "-workGroup"));
         serverBootstrap = new ServerBootstrap().group(boss, worker)
             .channel(NioServerSocketChannel.class)
             .option(ChannelOption.SO_BACKLOG, 1024)
@@ -152,7 +154,7 @@ public final class InputLoop implements Runnable, Closeable {
         }
 
         /**
-         * Listeners that flushes the the JRuby supplied {@link Decoder} when the socket is closed.
+         * Listeners that flushes the JRuby supplied {@link Decoder} when the socket is closed.
          */
         private static final class FlushOnCloseListener implements GenericFutureListener<Future<Void>> {
 
@@ -199,7 +201,7 @@ public final class InputLoop implements Runnable, Closeable {
                 this.decoder = decoder;
             }
 
-            // 6.07 updated to pass in the full netty ChannelHandlerContext instead of the remoteaddress field
+            // 6.07 updated to pass in the full netty ChannelHandlerContext instead of the remote address field
             //      corresponding interface updated
             @Override
             public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
