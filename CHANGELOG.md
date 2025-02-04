@@ -1,3 +1,6 @@
+## 7.0.1
+  - Name netty threads with plugin id and their purpose [229](https://github.com/logstash-plugins/logstash-input-tcp/pull/229)
+
 ## 7.0.0
   - SSL settings that were marked deprecated in version `6.4.0` are now marked obsolete, and will prevent the plugin from starting.
   - These settings are:
