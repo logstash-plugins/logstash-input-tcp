@@ -1,3 +1,6 @@
+## 6.4.5
+  - Name netty threads with plugin id and their purpose [229](https://github.com/logstash-plugins/logstash-input-tcp/pull/229)
+
 ## 6.4.4
   - update netty to 4.1.115 [#227](https://github.com/logstash-plugins/logstash-input-tcp/pull/227)
 
