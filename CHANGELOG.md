@@ -1,5 +1,5 @@
 ## 7.0.1
-  - Name netty threads with plugin id and their purpose [229](https://github.com/logstash-plugins/logstash-input-tcp/pull/229)
+  - Name netty threads with plugin id and their purpose [#229](https://github.com/logstash-plugins/logstash-input-tcp/pull/229)
 
 ## 7.0.0
   - SSL settings that were marked deprecated in version `6.4.0` are now marked obsolete, and will prevent the plugin from starting.
@@ -7,7 +7,7 @@
     - `ssl_cert`, which should be replaced by `ssl_certificate`
     - `ssl_enable`, which should be replaced by `ssl_enabled`
     - `ssl_verify`, which should be replaced by `ssl_client_authentication` when `mode` is `server` or `ssl_verification_mode`when mode is `client`
-    - [228](https://github.com/logstash-plugins/logstash-input-tcp/pull/228)
+    - [#228](https://github.com/logstash-plugins/logstash-input-tcp/pull/228)
 
 ## 6.4.4
   - update netty to 4.1.115 [#227](https://github.com/logstash-plugins/logstash-input-tcp/pull/227)
