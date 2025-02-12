@@ -1,3 +1,6 @@
+## 7.0.2
+  - Upgrade netty to 4.1.118 [#232](https://github.com/logstash-plugins/logstash-input-tcp/pull/232)
+
 ## 7.0.1
   - Name netty threads with plugin id and their purpose [#229](https://github.com/logstash-plugins/logstash-input-tcp/pull/229)
 
