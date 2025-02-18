@@ -57,7 +57,7 @@ First, we need to configure your application to write JSON-formatted logs to a T
   </Loggers>
 </Configuration>
 ----
-<1> Using Socket Appender to write logs to a TCP socket – make sure to *change the `host` attribute* to match your setup
+<1> Using Socket Appender to write logs to a TCP socket – make sure to *change the `host` and `port` attributes* to match your setup
 <2> Using https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[JSON Template Layout] to encode log events in JSON
 <3> Using the ECS (Elastic Common Schema) layout bundled with JSON Template Layout
 <4> Configuring that written log events should be terminated with a null (i.e., `\0`) character
