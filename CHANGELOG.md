@@ -1,3 +1,6 @@
+## 6.4.7
+  - Upgrade netty to 4.1.126 [#236](https://github.com/logstash-plugins/logstash-input-tcp/pull/236)
+
 ## 6.4.6
   - Upgrade netty to 4.1.118 [#233](https://github.com/logstash-plugins/logstash-input-tcp/pull/233)
 
