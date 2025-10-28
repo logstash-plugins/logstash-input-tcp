@@ -42,9 +42,9 @@ public final class InputLoop implements Runnable, Closeable {
     private final EventLoopGroup worker;
 
     /**
-     * The Server Bootstrap
+     * The channel after starting
      */
-    private final ServerBootstrap serverBootstrap;
+    private final Channel serverChannel;
 
     /**
      * SSL configuration.
@@ -75,17 +75,26 @@ public final class InputLoop implements Runnable, Closeable {
         this.port = port;
         boss = new NioEventLoopGroup(1, daemonThreadFactory(id + "-bossGroup"));
         worker = new NioEventLoopGroup(daemonThreadFactory(id + "-workGroup"));
-        serverBootstrap = new ServerBootstrap().group(boss, worker)
+        final ServerBootstrap serverBootstrap = new ServerBootstrap().group(boss, worker)
             .channel(NioServerSocketChannel.class)
             .option(ChannelOption.SO_BACKLOG, 1024)
+            .option(ChannelOption.AUTO_READ, false) // do not auto-read until plugin has a queue
             .childOption(ChannelOption.SO_KEEPALIVE, keepAlive)
             .childHandler(new InputLoop.InputHandler(decoder, sslContext));
+
+        try {
+            serverChannel = serverBootstrap.bind(host, port).sync().channel();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void run() {
+        serverChannel.config().setAutoRead(true);
+
         try {
-            serverBootstrap.bind(host, port).sync().channel().closeFuture().sync();
+            serverChannel.closeFuture().sync();
         } catch (final InterruptedException ex) {
             throw new IllegalStateException(ex);
         }
