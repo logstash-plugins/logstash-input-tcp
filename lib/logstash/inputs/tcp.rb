@@ -6,6 +6,7 @@ require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
 require 'logstash/plugin_mixins/ecs_compatibility_support'
+require 'logstash/plugin_mixins/port_management_support'
 
 require "socket"
 require "openssl"
@@ -67,6 +68,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   # ecs_compatibility option, provided by Logstash core or the support adapter.
   include LogStash::PluginMixins::ECSCompatibilitySupport(:disabled, :v1, :v8 => :v1)
+
+  include LogStash::PluginMixins::PortManagementSupport
 
   config_name "tcp"
 
@@ -177,15 +180,20 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     validate_ssl_config!
 
     if server?
-      @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+      @port_reservation = port_management.reserve(addr: @host, port: @port) do |reserved_addr, reserved_port|
+        @loop = InputLoop.new(@id, reserved_addr, reserved_port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+      end
     end
   end
 
   def run(output_queue)
     @output_queue = output_queue
     if server?
-      @logger.info("Starting tcp input listener", :address => "#{@host}:#{@port}", :ssl_enabled => @ssl_enabled)
-      @loop.run
+      @port_reservation.convert do |reserved_addr, reserved_port|
+        @logger.info("Starting tcp input listener", :address => "#{reserved_addr}:#{reserved_port}", :ssl_enabled => @ssl_enabled)
+        @loop.start
+      end
+      @loop.wait_until_closed
     else
       run_client()
     end

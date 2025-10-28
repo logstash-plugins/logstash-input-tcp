@@ -26,7 +26,7 @@ import static org.logstash.tcp.util.DaemonThreadFactory.daemonThreadFactory;
 /**
  * Plain TCP Server Implementation.
  */
-public final class InputLoop implements Runnable, Closeable {
+public final class InputLoop implements Closeable {
 
     // historically this class was passing around the plugin's logger
     private static final Logger logger = LogManager.getLogger("logstash.inputs.tcp");
@@ -45,6 +45,11 @@ public final class InputLoop implements Runnable, Closeable {
      * The Server Bootstrap
      */
     private final ServerBootstrap serverBootstrap;
+
+    /**
+     * The channel after starting
+     */
+    private volatile Channel channel;
 
     /**
      * SSL configuration.
@@ -82,11 +87,26 @@ public final class InputLoop implements Runnable, Closeable {
             .childHandler(new InputLoop.InputHandler(decoder, sslContext));
     }
 
-    @Override
-    public void run() {
+    public synchronized void start() {
+        if (channel != null) {
+            throw new IllegalStateException("Already started");
+        }
         try {
-            serverBootstrap.bind(host, port).sync().channel().closeFuture().sync();
-        } catch (final InterruptedException ex) {
+            channel = serverBootstrap.bind(host, port).sync().channel();
+        }catch (final InterruptedException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    public void waitUntilClosed() {
+        synchronized (this) {
+            if (channel == null) {
+                throw new IllegalStateException("not started");
+            }
+        }
+        try {
+            channel.closeFuture().sync();
+        }catch (final InterruptedException ex) {
             throw new IllegalStateException(ex);
         }
     }
