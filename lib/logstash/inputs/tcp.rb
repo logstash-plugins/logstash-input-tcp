@@ -181,7 +181,9 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
     if server?
       @port_reservation = port_management.reserve(addr: @host, port: @port) do |reserved_addr, reserved_port|
-        @loop = InputLoop.new(@id, reserved_addr, reserved_port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+        # we create the loop for the *requested* host addr, because the *reserved* addr
+        # may be reported overly-broad (e.g, ipv4-only `0.0.0.0` can become ipv6-tolerating `::` depending on arch)
+        @loop = InputLoop.new(@id, @host, reserved_port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
       end
     end
   end
@@ -189,8 +191,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   def run(output_queue)
     @output_queue = output_queue
     if server?
-      @port_reservation.convert do |reserved_addr, reserved_port|
-        @logger.info("Starting tcp input listener", :address => "#{reserved_addr}:#{reserved_port}", :ssl_enabled => @ssl_enabled)
+      @port_reservation.convert do |_, reserved_port|
+        @logger.info("Starting tcp input listener", :address => "#{@host}:#{reserved_port}", :ssl_enabled => @ssl_enabled)
         @loop.start
       end
       @loop.wait_until_closed

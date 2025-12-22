@@ -24,8 +24,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
   ##
   # yield the block with a port that is available
   # @return [Integer]: a port that is available
-  def find_available_port
-    with_bound_port(&:itself)
+  def find_available_port(host)
+    with_bound_port(host: host, &:itself)
   end
 
   ##
@@ -33,15 +33,15 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
   # @yieldparam port [Integer]
   # @yieldreturn [Object]
   # @return [Object]
-  def with_bound_port(port=0, &block)
-    server = TCPServer.new("::", port)
+  def with_bound_port(host:"::", port:0, &block)
+    server = TCPServer.new(host, port)
 
     return yield(server.local_address.ip_port)
   ensure
     server.close
   end
 
-  let(:port) { find_available_port }
+  let(:port) { find_available_port("127.0.0.1") }
 
   context "codec (PR #1372)" do
     it "switches from plain to line" do
@@ -383,7 +383,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
       context "when the port is unavailable" do
         it 'raises a helpful exception' do
-          with_bound_port(port) do |unavailable_port|
+          with_bound_port(host: "127.0.0.1", port: port) do |unavailable_port|
             expect { subject.register }.to raise_error(Errno::EADDRINUSE)
           end
         end
