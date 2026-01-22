@@ -93,7 +93,7 @@ public final class InputLoop implements Closeable {
         }
         try {
             channel = serverBootstrap.bind(host, port).sync().channel();
-        }catch (final InterruptedException ex) {
+        } catch (final InterruptedException ex) {
             throw new IllegalStateException(ex);
         }
     }
@@ -101,7 +101,7 @@ public final class InputLoop implements Closeable {
     public void waitUntilClosed() {
         synchronized (this) {
             if (channel == null) {
-                throw new IllegalStateException("not started");
+                throw new IllegalStateException("Not started");
             }
         }
         try {
