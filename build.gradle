@@ -52,22 +52,19 @@ String junitVersion = '5.11.2'
 
 
 dependencies {
+  // netty-handler pulls netty-buffer, netty-codec, netty-common, netty-transport,
+  // netty-transport-native-unix-common, and netty-resolver as transitive dependencies
+  implementation "io.netty:netty-handler:${nettyVersion}"
+  implementation group: 'commons-io', name: 'commons-io', version: '2.17.0'
+
+  compileOnly 'org.apache.logging.log4j:log4j-api:2.17.1' // provided by Logstash
+  compileOnly group: 'org.jruby', name: 'jruby-core', version: "9.4.8.0" // provided by Logstash
+  compileOnly group: 'org.bouncycastle', name: 'bcpkix-jdk18on', version: "1.78.1"  // provided by Logstash (JRuby-OpenSSL)
+
   testImplementation 'org.apache.logging.log4j:log4j-core:2.17.1'
   testImplementation 'org.hamcrest:hamcrest-library:2.2'
   testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
   testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
-
-  implementation "io.netty:netty-buffer:${nettyVersion}"
-  implementation "io.netty:netty-codec:${nettyVersion}"
-  implementation "io.netty:netty-common:${nettyVersion}"
-  implementation "io.netty:netty-transport:${nettyVersion}"
-  implementation "io.netty:netty-handler:${nettyVersion}"
-  implementation "io.netty:netty-transport-native-unix-common:${nettyVersion}" // this is needed from Netty 4.1.78.Final on
-
-  implementation group: 'commons-io', name: 'commons-io', version: '2.17.0' // used from Netty
-  compileOnly 'org.apache.logging.log4j:log4j-api:2.17.1' // provided by Logstash
-  compileOnly group: 'org.jruby', name: 'jruby-core', version: "9.4.8.0" // provided by Logstash
-  compileOnly group: 'org.bouncycastle', name: 'bcpkix-jdk18on', version: "1.78.1"  // provided by Logstash (JRuby-OpenSSL)
 }
 
 test {
@@ -97,20 +94,23 @@ task generateGemJarRequiresFile {
 task vendor {
     doLast {
         String vendorPathPrefix = "vendor/jar-dependencies"
+        String projectGroupPath = project.group.replaceAll('\\.', '/')
         configurations.runtimeClasspath.incoming.artifacts.artifacts.each { artifact ->
             def id = artifact.id.componentIdentifier
             if (id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
-                String group = id.group
                 String name = id.module
                 String version = id.version
-                String groupPath = group.replaceAll('\\.', '/')
-                File newJarFile = file("${vendorPathPrefix}/${groupPath}/${name}/${version}/${name}-${version}.jar")
+                File newJarFile = file("${vendorPathPrefix}/${projectGroupPath}/${name}/${version}/${name}-${version}.jar")
                 if (!newJarFile.parentFile.exists()) {
                     newJarFile.parentFile.mkdirs()
                 }
                 Files.copy(artifact.file.toPath(), newJarFile.toPath(), REPLACE_EXISTING)
             }
         }
+      // Copy the project jar into vendor/jar-dependencies
+      File projectJarFile = file("${vendorPathPrefix}/${projectGroupPath}/${project.name}/${project.version}/${project.name}-${project.version}.jar")
+      projectJarFile.mkdirs()
+      Files.copy(file("$buildDir/libs/${project.name}-${project.version}.jar").toPath(), projectJarFile.toPath(), REPLACE_EXISTING)
     }
 }
 

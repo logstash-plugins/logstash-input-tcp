@@ -2,10 +2,10 @@
 
 require 'jar_dependencies'
 require_jar('io.netty', 'netty-handler', '4.1.129.Final')
-require_jar('io.netty', 'netty-codec', '4.1.129.Final')
-require_jar('io.netty', 'netty-transport-native-unix-common', '4.1.129.Final')
-require_jar('io.netty', 'netty-transport', '4.1.129.Final')
-require_jar('io.netty', 'netty-buffer', '4.1.129.Final')
-require_jar('io.netty', 'netty-resolver', '4.1.129.Final')
-require_jar('io.netty', 'netty-common', '4.1.129.Final')
 require_jar('commons-io', 'commons-io', '2.17.0')
+require_jar('io.netty', 'netty-transport-native-unix-common', '4.1.129.Final')
+require_jar('io.netty', 'netty-codec', '4.1.129.Final')
+require_jar('io.netty', 'netty-transport', '4.1.129.Final')
+require_jar('io.netty', 'netty-resolver', '4.1.129.Final')
+require_jar('io.netty', 'netty-buffer', '4.1.129.Final')
+require_jar('io.netty', 'netty-common', '4.1.129.Final')
