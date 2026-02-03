@@ -10,4 +10,4 @@ build
 out
 .rakeTasks
 Gemfile.lock
-lib/logstash-input-beats_jars.rb
+lib/logstash-input-tcp_jars.rb
