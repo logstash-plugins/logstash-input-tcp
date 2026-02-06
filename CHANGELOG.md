@@ -1,3 +1,6 @@
+## 7.0.6
+  - Upgrade netty to 4.1.131 [#245](https://github.com/logstash-plugins/logstash-input-tcp/issues/245)
+
 ## 7.0.5
   - Re-packaging the plugin [#242](https://github.com/logstash-plugins/logstash-input-tcp/pull/242)
 
