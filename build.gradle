@@ -46,7 +46,7 @@ java {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
 
-String nettyVersion = '4.1.129.Final'
+String nettyVersion = '4.1.131.Final'
 String junitVersion = '5.11.2'
 
 
