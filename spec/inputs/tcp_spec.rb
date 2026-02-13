@@ -21,19 +21,27 @@ require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
 #Cabin::Channel.get(LogStash).level = :debug
 describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
-  def get_port
-    begin
-      # Start high to better avoid common services
-      port = rand(10000..65535)
-      s = TCPServer.new("127.0.0.1", port)
-      s.close
-      return port
-    rescue Errno::EADDRINUSE
-      retry
-    end
+  ##
+  # yield the block with a port that is available
+  # @return [Integer]: a port that is available
+  def find_available_port(host)
+    with_bound_port(host: host, &:itself)
   end
 
-  let(:port) { get_port }
+  ##
+  # Yields block with a port that is unavailable
+  # @yieldparam port [Integer]
+  # @yieldreturn [Object]
+  # @return [Object]
+  def with_bound_port(host:"::", port:0, &block)
+    server = TCPServer.new(host, port)
+
+    return yield(server.local_address.ip_port)
+  ensure
+    server.close
+  end
+
+  let(:port) { find_available_port("127.0.0.1") }
 
   context "codec (PR #1372)" do
     it "switches from plain to line" do
@@ -371,6 +379,14 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
       it "should register without errors" do
         expect { subject.register }.to_not raise_error
+      end
+
+      context "when the port is unavailable" do
+        it 'raises a helpful exception' do
+          with_bound_port(host: "127.0.0.1", port: port) do |unavailable_port|
+            expect { subject.register }.to raise_error(Errno::EADDRINUSE)
+          end
+        end
       end
 
       context "when using ssl" do
