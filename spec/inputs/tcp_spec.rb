@@ -859,7 +859,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
               base_config.merge 'ssl_cipher_suites' => [ cipher_suite ]
             end
 
-            let(:cipher_suite) { 'TLS_RSA_WITH_AES_128_GCM_SHA256' }
+            let(:cipher_suite) { 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' }
 
             it "should be able to connect and write data" do
               used_cipher_suite = nil
@@ -878,7 +878,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
           context "with unsupported client cipher" do
             let(:config) do
-              base_config.merge 'ssl_cipher_suites' => [ 'TLS_RSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' ]
+              base_config.merge 'ssl_cipher_suites' => [ 'TLS_DHE_RSA_WITH_AES_128_GCM_SHA256', 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' ]
             end
 
             let(:sslcontext) do
@@ -994,11 +994,11 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         super().merge 'ssl_cipher_suites' => [ cipher_suite ]
       end
 
-      let(:cipher_suite) { 'TLS_RSA_WITH_AES_128_GCM_SHA256' }
+      let(:cipher_suite) { 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' }
 
       it "sets ciphers" do
         cipher_ary = ssl_context.ciphers.first
-        expect( cipher_ary[0] ).to eql 'AES128-GCM-SHA256'
+        expect( cipher_ary[0] ).to eql 'ECDHE-RSA-AES128-GCM-SHA256'
       end
 
     end
