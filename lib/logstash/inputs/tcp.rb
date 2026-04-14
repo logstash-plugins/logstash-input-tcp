@@ -177,7 +177,13 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     validate_ssl_config!
 
     if server?
-      @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+      begin
+        @logger.info("Binding tcp input listener", :address => "#{@host}:#{@port}", :ssl_enabled => @ssl_enabled)
+        @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+        ObjectSpace.define_finalizer(self, self.class._loop_close_proc(@loop))
+      rescue java.net.BindException => bind_exception
+        fail LogStash::ConfigurationError, "could not bind to #{@host}:#{@port}; #{bind_exception.message}"
+      end
     end
   end
 
@@ -502,6 +508,20 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
       error_details[:cause][:backtrace] = cause.backtrace if trace || @logger.debug?
     end
     error_details
+  end
+
+  # returns a proc to close the provided server without holding any other refs
+  # https://www.mikeperham.com/2010/02/24/the-trouble-with-ruby-finalizers/
+  def self._loop_close_proc(server)
+    proc do
+      begin
+        logger.trace("ObjectSpace::closing(#{server})")
+        server.close
+        logger.trace("ObjectSpace::closed(#{server})")
+      rescue Exception => e
+        logger.error("Failed to close #{server}: #{e.message}")
+      end
+    end
   end
 
 end
