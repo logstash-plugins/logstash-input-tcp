@@ -1,0 +1,13 @@
+# Example workflow for plugin repositories
+# Copy this to .github/workflows/changelog.yml in each plugin repo
+
+name: Changelog Management
+
+on:
+  pull_request_target:
+    types: [opened, closed]
+
+jobs:
+  changelog:
+    uses: alexcams/.github/.github/workflows/pr-prepare.yml@refactor-workflow-to-commit-after-merge
+    secrets: inherit
