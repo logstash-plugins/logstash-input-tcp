@@ -85,6 +85,8 @@ public final class InputLoop implements Runnable, Closeable {
         try {
             serverChannel = serverBootstrap.bind(host, port).sync().channel();
         } catch (InterruptedException e) {
+            boss.shutdownGracefully();
+            worker.shutdownGracefully();
             throw new RuntimeException(e);
         }
     }
