@@ -1,3 +1,6 @@
+## 7.0.9
+  - Update Netty dependency to 4.1.133.Final [#256](https://github.com/logstash-plugins/logstash-input-tcp/pull/256)
+
 ## 7.0.8
   - When configured to use a port that is already in use, the failure is now propagated to the pipeline [#250](https://github.com/logstash-plugins/logstash-input-tcp/pull/250)
     This fixes an issue where a misconfigured input could retry indefinitely while Logstash's health report continued to report the pipeline as healthy. 
