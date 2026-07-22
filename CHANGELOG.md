@@ -1,3 +1,6 @@
+## 7.0.12
+  - Update Netty dependency to 4.1.136.Final [#281](https://github.com/logstash-plugins/logstash-input-tcp/pull/281)
+
 ## 7.0.11
   - Update Netty dependency to 4.1.135.Final [#274](https://github.com/logstash-plugins/logstash-input-tcp/pull/274)
 
