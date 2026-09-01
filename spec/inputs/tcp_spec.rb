@@ -42,7 +42,8 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
   end
 
   def queue_pop_with_timeout(seconds, queue)
-    deadline = Time.now + seconds
+    start = Time.now
+    deadline = start + seconds
     item = nil
     until item || Time.now >= deadline
       begin
@@ -50,6 +51,9 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       rescue ThreadError
         sleep 0.1
       end
+    end
+    if item == nil
+      raise "Elapsed #{Time.now - start} seconds before pop a value"
     end
     return item
   end
