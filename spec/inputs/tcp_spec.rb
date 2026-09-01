@@ -135,10 +135,11 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         }
       CONFIG
 
-      events = input(conf) do |pipeline, queue|
+      events = input(conf) do |_, queue|
         socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
-        socket.puts("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r");
+        socket.write("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r")
         socket.flush
+        socket.write("\n")
         event_count.times do |i|
           # unicode smiley for testing unicode support!
           socket.puts("#{i} ☹")
