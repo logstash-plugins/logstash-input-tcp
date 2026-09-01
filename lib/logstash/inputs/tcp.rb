@@ -179,7 +179,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     if server?
       begin
         @logger.info("Binding tcp input listener", :address => "#{@host}:#{@port}", :ssl_enabled => @ssl_enabled)
-        @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+        @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context, 
+                              @proxy_protocol)
       rescue java.net.BindException => bind_exception
         fail LogStash::ConfigurationError, "could not bind to #{@host}:#{@port}; #{bind_exception.message}"
       end

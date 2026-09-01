@@ -69,7 +69,7 @@ public final class InputLoop implements Runnable, Closeable {
      * @param keepAlive set to true to instruct the socket to issue TCP keep alive
      */
     public InputLoop(final String id, final String host, final int port, final Decoder decoder, final boolean keepAlive,
-                     final SslContext sslContext) {
+                     final SslContext sslContext, final boolean proxy) {
         this.sslContext = sslContext;
         this.host = host;
         this.port = port;
@@ -80,7 +80,7 @@ public final class InputLoop implements Runnable, Closeable {
             .option(ChannelOption.SO_BACKLOG, 1024)
             .option(ChannelOption.AUTO_READ, false) // do not auto-read until plugin has a queue
             .childOption(ChannelOption.SO_KEEPALIVE, keepAlive)
-            .childHandler(new InputLoop.InputHandler(decoder, sslContext));
+            .childHandler(new InputLoop.InputHandler(decoder, sslContext, proxy));
 
         try {
             serverChannel = serverBootstrap.bind(host, port).sync().channel();
@@ -131,14 +131,16 @@ public final class InputLoop implements Runnable, Closeable {
          * SSL configuration options.
          */
         private final SslContext sslContext;
+        private final boolean proxy;
 
         /**
          * Ctor.
          * @param decoder {@link Decoder} provided by JRuby.
          */
-        InputHandler(final Decoder decoder, final SslContext sslContext) {
+        InputHandler(final Decoder decoder, final SslContext sslContext, final boolean proxy) {
             this.decoder = decoder;
             this.sslContext = sslContext;
+            this.proxy = proxy;
         }
 
         @Override
@@ -150,6 +152,9 @@ public final class InputLoop implements Runnable, Closeable {
                 channel.pipeline().addLast(SSL_HANDLER, sslContext.newHandler(channel.alloc()));
             }
 
+            if (proxy) {
+                channel.pipeline().addLast(new ProxyLineAggregator());
+            }
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));
             channel.closeFuture().addListener(new FlushOnCloseListener(localCopy));
 

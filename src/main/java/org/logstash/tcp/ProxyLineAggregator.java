@@ -41,7 +41,7 @@ public class ProxyLineAggregator extends ByteToMessageDecoder {
                     out.add(buffer.readRetainedSlice(buffer.readableBytes()));
                     return;
                 }
-                if (buffer.forEachByte(ByteProcessor.FIND_CRLF) == -1) {
+                if (!containsCrlf(buffer)) {
                     return;
                 }
                 state = DecoderState.COMPLETED;
@@ -51,6 +51,11 @@ public class ProxyLineAggregator extends ByteToMessageDecoder {
                 out.add(buffer.readRetainedSlice(buffer.readableBytes()));
                 break;
         }
+    }
+
+    private static boolean containsCrlf(ByteBuf buffer) {
+        int lfIndex = buffer.forEachByte(ByteProcessor.FIND_LF);
+        return lfIndex > 0 && buffer.getByte(lfIndex - 1) == '\r';
     }
 
     private static boolean startsWithProxy(ByteBuf buffer) {
