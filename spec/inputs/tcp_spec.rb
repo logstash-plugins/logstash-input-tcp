@@ -41,6 +41,19 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
     server.close
   end
 
+  def queue_pop_with_timeout(seconds, queue)
+    deadline = Time.now + seconds
+    item = nil
+    until item || Time.now >= deadline
+      begin
+        item = queue.pop(true)   # raises ThreadError if empty
+      rescue ThreadError
+        sleep 0.1
+      end
+    end
+    return item
+  end
+
   let(:port) { find_available_port("127.0.0.1") }
 
   context "codec (PR #1372)" do
@@ -139,15 +152,23 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
         socket.write("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r")
         socket.flush
-        socket.write("\n")
-        event_count.times do |i|
-          # unicode smiley for testing unicode support!
-          socket.puts("#{i} ☹")
-          socket.flush
+        # proceed with the rest of data writing in a separate thread
+        # so that crates some interleaving in the buffers seen on network layer
+        Thread.new do
+          sleep(1)
+          begin
+            socket.write("\n")
+            event_count.times do |i|
+              # unicode smiley for testing unicode support!
+              socket.puts("#{i} ☹")
+              socket.flush
+            end
+            socket.close
+          rescue => e
+            puts "Error while writing to the socket #{e.backtrace}"
+          end
         end
-        socket.close
-
-        event_count.times.collect {queue.pop}
+        event_count.times.collect { queue_pop_with_timeout(5, queue) }
       end
 
       expect(events.length).to eq(event_count)
@@ -675,6 +696,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       context "when ssl_enabled is true" do
         let(:input) { subject }
         let(:queue) { Queue.new }
+        # let(:queue) { Thread::Queue.new }
         before(:each) do
           allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility) if defined?(ecs_compatibility)
           subject.register
