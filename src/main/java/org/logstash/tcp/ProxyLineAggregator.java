@@ -10,47 +10,30 @@ import java.util.List;
 
 
 /**
- * Accumulate bytes until the HAProxy format v1 headline is present in the buffer.
- * The line has format "PROXY....\r\n", this aggregator reject the buffer until it has that format,
- * once reached passthrough every buffer as it is.
- * This is needed because Ruby class DecoderImpl expect to have the full line when processing HAProxy protocol, and
- * doesn't work with fragments.
+ * The line has format "PROXY....\r\n"; this aggregator holds back the buffer until that full
+ * line is available, then passes it through and removes itself from the pipeline.
+ * This is needed because Ruby class DecoderImpl expects the full line when processing the HAProxy
+ * protocol and doesn't work with fragments.
  * */
 public class ProxyLineAggregator extends ByteToMessageDecoder {
 
     private static final byte[] PROXY_PREFIX = "PROXY".getBytes(StandardCharsets.US_ASCII);
     public static final int PROXY_LENGTH = PROXY_PREFIX.length;
 
-    enum DecoderState {READ_PROXY, COMPLETED}
-
-    private DecoderState state;
-
-    public ProxyLineAggregator() {
-        this.state = DecoderState.READ_PROXY;
-    }
-
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf buffer, List<Object> out) throws Exception {
-        switch (state) {
-            case READ_PROXY:
-                if (buffer.readableBytes() < PROXY_LENGTH) {
-                    return;
-                }
-                if (!startsWithProxy(buffer)) {
-                    state = DecoderState.COMPLETED;
-                    out.add(buffer.readRetainedSlice(buffer.readableBytes()));
-                    return;
-                }
-                if (!containsCrlf(buffer)) {
-                    return;
-                }
-                state = DecoderState.COMPLETED;
-                out.add(buffer.readRetainedSlice(buffer.readableBytes()));
-                break;
-            case COMPLETED:
-                out.add(buffer.readRetainedSlice(buffer.readableBytes()));
-                break;
+        // Wait until we can decide: enough bytes to match the prefix, and if it is a PROXY
+        // line, the terminating \r\n must be present.
+        if (buffer.readableBytes() < PROXY_LENGTH) {
+            return;
         }
+        if (startsWithProxy(buffer) && !containsCrlf(buffer)) {
+            return;
+        }
+        // Full PROXY line, or non-PROXY data: pass everything through and drop this handler
+        // so subsequent reads skip the aggregator entirely.
+        out.add(buffer.readRetainedSlice(buffer.readableBytes()));
+        ctx.pipeline().remove(this);
     }
 
     private static boolean containsCrlf(ByteBuf buffer) {
