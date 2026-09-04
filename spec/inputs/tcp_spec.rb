@@ -700,7 +700,6 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
       context "when ssl_enabled is true" do
         let(:input) { subject }
         let(:queue) { Queue.new }
-        # let(:queue) { Thread::Queue.new }
         before(:each) do
           allow_any_instance_of(described_class).to receive(:ecs_compatibility).and_return(ecs_compatibility) if defined?(ecs_compatibility)
           subject.register

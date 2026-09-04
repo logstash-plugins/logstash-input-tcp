@@ -67,6 +67,8 @@ public final class InputLoop implements Runnable, Closeable {
      * @param port Port to listen on
      * @param decoder {@link Decoder} provided by Jruby
      * @param keepAlive set to true to instruct the socket to issue TCP keep alive
+     * @param sslContext SSL configuration, or null when TLS is disabled
+     * @param proxy set to true to aggregate the HAProxy v1 header line before decoding
      */
     public InputLoop(final String id, final String host, final int port, final Decoder decoder, final boolean keepAlive,
                      final SslContext sslContext, final boolean proxy) {
