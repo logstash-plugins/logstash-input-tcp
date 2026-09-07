@@ -41,6 +41,23 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
     server.close
   end
 
+  def queue_pop_with_timeout(seconds, queue)
+    start = Time.now
+    deadline = start + seconds
+    item = nil
+    until item || Time.now >= deadline
+      begin
+        item = queue.pop(true)   # raises ThreadError if empty
+      rescue ThreadError
+        sleep 0.1
+      end
+    end
+    if item == nil
+      raise "Elapsed #{Time.now - start} seconds before pop a value"
+    end
+    return item
+  end
+
   let(:port) { find_available_port("127.0.0.1") }
 
   context "codec (PR #1372)" do
@@ -135,18 +152,27 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
         }
       CONFIG
 
-      events = input(conf) do |pipeline, queue|
+      events = input(conf) do |_, queue|
         socket = Stud::try(5.times) { TCPSocket.new("127.0.0.1", port) }
-        socket.puts("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r");
+        socket.write("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r")
         socket.flush
-        event_count.times do |i|
-          # unicode smiley for testing unicode support!
-          socket.puts("#{i} ☹")
-          socket.flush
+        # proceed with the rest of data writing in a separate thread
+        # so that crates some interleaving in the buffers seen on network layer
+        Thread.new do
+          sleep(1)
+          begin
+            socket.write("\n")
+            event_count.times do |i|
+              # unicode smiley for testing unicode support!
+              socket.puts("#{i} ☹")
+              socket.flush
+            end
+            socket.close
+          rescue => e
+            puts "Error while writing to the socket #{e.backtrace}"
+          end
         end
-        socket.close
-
-        event_count.times.collect {queue.pop}
+        event_count.times.collect { queue_pop_with_timeout(5, queue) }
       end
 
       expect(events.length).to eq(event_count)
