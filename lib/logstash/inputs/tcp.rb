@@ -181,7 +181,7 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     validate_ssl_config!
 
     if server?
-      @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context)
+      @loop = InputLoop.new(@id, @host, @port, DecoderImpl.new(@codec, self), @tcp_keep_alive, java_ssl_context, @proxy_protocol)
     end
   end
 
