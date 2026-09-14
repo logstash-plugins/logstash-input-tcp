@@ -1,3 +1,6 @@
+## 6.4.17
+  - Update Netty dependency to 4.1.138.Final [#289](https://github.com/logstash-plugins/logstash-input-tcp/pull/289)
+
 ## 6.4.16
   - Fix for processing the HA Proxy protocol, considering the line can be split in multiple buffers. [#287](https://github.com/logstash-plugins/logstash-input-tcp/pull/287)
 
