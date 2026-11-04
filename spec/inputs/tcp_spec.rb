@@ -23,8 +23,10 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
   def get_port
     begin
-      # Start high to better avoid common services
-      port = rand(10000..65535)
+      # Start high to better avoid common services, but stay below the OS ephemeral port
+      # ranges (Linux: 32768-60999, macOS: 49152-65535) so that the kernel cannot hand
+      # the port out to another socket between this check and the plugin binding to it.
+      port = rand(10000..32767)
       s = TCPServer.new("127.0.0.1", port)
       s.close
       return port
