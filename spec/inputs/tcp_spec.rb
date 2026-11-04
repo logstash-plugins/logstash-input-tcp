@@ -22,10 +22,12 @@ require 'logstash/plugin_mixins/ecs_compatibility_support/spec_helper'
 describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
 
   ##
-  # yield the block with a port that is available
+  # Find a port that is available, picked outside of the OS ephemeral port ranges
+  # (Linux: 32768-60999, macOS: 49152-65535) so that the kernel cannot hand it out
+  # to another socket between this check and the plugin binding to it.
   # @return [Integer]: a port that is available
   def find_available_port(host)
-    with_bound_port(host: host, &:itself)
+    Stud::try(20.times) { with_bound_port(host: host, port: rand(1024..32767), &:itself) }
   end
 
   ##
