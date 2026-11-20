@@ -975,7 +975,7 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
           context "that sends garbage instead of TLS handshake" do
             let!(:input_task) { Stud::Task.new { input.run(queue) } }
             let(:max_length) { 1000 }
-            let(:garbage) { Flores::Random.iterations(max_length).collect { Flores::Random.integer(1...255) }.pack("C*") }
+            let(:garbage) { Flores::Random.iterations(1..max_length).collect { Flores::Random.integer(1...255) }.pack("C*") }
             before do
               # Assertion to verify this test is actually sending something.
               expect(garbage.length).to be > 0
