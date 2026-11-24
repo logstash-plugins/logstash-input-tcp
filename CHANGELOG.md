@@ -1,3 +1,6 @@
+## 7.0.16
+  - Fix `proxy_protocol` with `ssl_enabled`: read the PROXY header, which is sent in clear text before the TLS handshake, in front of the SSL handler [#210](https://github.com/logstash-plugins/logstash-input-tcp/issues/210)
+
 ## 7.0.15
   - Update Netty dependency to 4.1.138.Final [#290](https://github.com/logstash-plugins/logstash-input-tcp/pull/290)
 
