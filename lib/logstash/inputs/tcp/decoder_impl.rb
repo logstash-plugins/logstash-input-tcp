@@ -36,7 +36,13 @@ class LogStash::Inputs::Tcp::DecoderImpl
   def init_first_read(channel, received)
     channel_addr = channel.remoteAddress()
     if @tcp.proxy_protocol
-      pp_hdr, filtered = received.split("\r\n", 2)
+      # With TLS, the PROXY line is read in front of the SSL handler and kept as a channel attribute.
+      pp_hdr = channel.attr(org.logstash.tcp.ProxyLineAggregator::PROXY_LINE).get
+      if pp_hdr.nil?
+        pp_hdr, filtered = received.split("\r\n", 2)
+      else
+        filtered = received
+      end
       pp_info = pp_hdr.split(/\s/)
       # PROXY proto clientip proxyip clientport proxyport
       if pp_info[0] != "PROXY"

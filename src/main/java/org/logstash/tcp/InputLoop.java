@@ -149,12 +149,14 @@ public final class InputLoop implements Runnable, Closeable {
         protected void initChannel(final SocketChannel channel) throws Exception {
             Decoder localCopy = decoder.copy();
 
-            // if SSL is enabled, the SSL handler must be added to the pipeline first
             if (sslContext != null) {
+                // The PROXY line is sent in clear text before the TLS handshake, so it must be
+                // read and removed from the stream before the SSL handler sees it.
+                if (proxy) {
+                    channel.pipeline().addLast(new ProxyLineAggregator(true));
+                }
                 channel.pipeline().addLast(SSL_HANDLER, sslContext.newHandler(channel.alloc()));
-            }
-
-            if (proxy) {
+            } else if (proxy) {
                 channel.pipeline().addLast(new ProxyLineAggregator());
             }
             channel.pipeline().addLast(new DecoderAdapter(localCopy, logger));

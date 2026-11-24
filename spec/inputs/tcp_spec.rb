@@ -753,6 +753,34 @@ describe LogStash::Inputs::Tcp, :ecs_compatibility_support do
             end
           end
 
+          context "with PROXY protocol v1" do
+            let(:config) do
+              base_config.merge "ssl_client_authentication" => "required", "proxy_protocol" => true,
+                                "ecs_compatibility" => "disabled"
+            end
+            it "reads the PROXY header sent in clear text before the TLS handshake" do
+              result = TcpHelpers.pipelineless_input(subject, 1) do
+                tcp.write("PROXY TCP4 1.2.3.4 5.6.7.8 1234 5678\r\n")
+                tcp.flush
+                sslsocket.connect
+                sslsocket.write("#{message}\n")
+                tcp.flush
+                sslsocket.close
+                tcp.close
+              end
+              expect(result.size).to eq(1)
+              event = result.first
+              aggregate_failures do
+                expect(event.get("message")).to eq(message)
+                expect(event.get("host")).to eq('1.2.3.4')
+                expect(event.get("port")).to eq('1234')
+                expect(event.get("proxy_host")).to eq('5.6.7.8')
+                expect(event.get("proxy_port")).to eq('5678')
+                expect(event.get("sslsubject")).to_not be_nil
+              end
+            end
+          end
+
           context "when using an encrypted private pkcs1 key" do
             let(:config) do
               {
